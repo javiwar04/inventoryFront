@@ -1,0 +1,58 @@
+/* Prevención específica de flashes verdes/colores */
+
+/* Asegurar fondo consistente en todos los estados */
+html, html.dark {
+  background: hsl(0 0% 98%) !important;
+}
+
+html.dark {
+  background: hsl(250 1% 12%) !important;
+}
+
+/* Prevenir cualquier color de fondo temporal durante carga */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: hsl(0 0% 98%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.dark body::before {
+  background: hsl(250 1% 12%);
+}
+
+/* Asegurar que los elementos mantengan colores consistentes */
+.bg-card, .bg-background, .bg-muted, 
+.bg-primary, .bg-secondary, .bg-accent {
+  transition: none !important;
+}
+
+/* Solo habilitar transiciones después de que todo esté cargado */
+body.loaded .bg-card, 
+body.loaded .bg-background, 
+body.loaded .bg-muted,
+body.loaded .bg-primary, 
+body.loaded .bg-secondary, 
+body.loaded .bg-accent {
+  transition: background-color 0.2s ease-in-out !important;
+}
+
+/* Prevenir flashes en elementos específicos */
+[data-radix-popper-content-wrapper],
+[role="menu"],
+[role="dialog"],
+.border {
+  transition: none !important;
+}
+
+body.loaded [data-radix-popper-content-wrapper],
+body.loaded [role="menu"],
+body.loaded [role="dialog"],
+body.loaded .border {
+  transition: all 0.2s ease-in-out !important;
+}
