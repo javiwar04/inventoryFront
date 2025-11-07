@@ -1,0 +1,61 @@
+using AccesoDatos.Context;
+using AccesoDatos.Operaciones;
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// DbContext (mover cadena a appsettings en producción)
+builder.Services.AddDbContext<InventoryBarberShopContext>(opt =>
+ opt.UseSqlServer("Server=localhost\\SQLEXPRESS01;Database=inventoryBarberShop;TrustServerCertificate=true;User Id=JaviWar04;Password=54853063;MultipleActiveResultSets=true"));
+
+// ✨ NUEVO: Configurar CORS para conectar con el frontend
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // URL del frontend Next.js
+              .AllowAnyMethod()     // GET, POST, PUT, DELETE, etc.
+              .AllowAnyHeader()     // Content-Type, Authorization, etc.
+              .AllowCredentials();  // Para cookies y auth headers
+    });
+});
+
+// DAOs
+builder.Services.AddScoped<ProductoDAO>();
+builder.Services.AddScoped<MovimientosStockDAO>();
+builder.Services.AddScoped<CategoriaDAO>();
+builder.Services.AddScoped<ProveedorDAO>();
+builder.Services.AddScoped<EntradaDAO>();
+builder.Services.AddScoped<SalidaDAO>();
+builder.Services.AddScoped<LoteProductoDAO>();
+builder.Services.AddScoped<UsuarioDAO>();
+builder.Services.AddScoped<PermisoDAO>();
+builder.Services.AddScoped<UsuarioPermisoDAO>();
+builder.Services.AddScoped<ConfiguracionDAO>();
+builder.Services.AddScoped<AuditoriaDAO>();
+builder.Services.AddScoped<ResumenInventarioDAO>();
+builder.Services.AddScoped<ProductosVencimientoDAO>();
+
+// Controllers + Swagger
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+ app.UseSwagger();
+ app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+
+// ✨ NUEVO: Usar CORS - DEBE ir antes de UseAuthorization
+app.UseCors("AllowFrontend");
+
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();

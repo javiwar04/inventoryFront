@@ -1,44 +1,73 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { type User, login as authLogin, logout as authLogout, getCurrentUser } from "@/lib/auth"
+import { authService, type Usuario } from "@/lib/api"
 
 interface AuthContextType {
-  user: User | null
+  user: Usuario | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (usuario: string, password: string) => Promise<void>
+  login: (emailOrUsername: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<Usuario | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     // Solo ejecutar en el cliente
     if (typeof window !== 'undefined') {
       try {
-        const currentUser = getCurrentUser()
-        setUser(currentUser)
+        // Cargar usuario desde localStorage si existe
+        const savedUser = localStorage.getItem('user-data')
+        const savedToken = localStorage.getItem('auth-token')
+        
+        if (savedUser && savedToken) {
+          setUser(JSON.parse(savedUser))
+        }
       } catch (error) {
         console.error('Error loading user:', error)
         setUser(null)
+        // Limpiar datos corruptos
+        localStorage.removeItem('user-data')
+        localStorage.removeItem('auth-token')
       }
     }
     setIsLoading(false)
   }, [])
 
-  const login = async (usuario: string, password: string) => {
-    const user = await authLogin(usuario, password)
-    setUser(user)
+  const login = async (emailOrUsername: string, password: string) => {
+    try {
+      // Intentar login con el servicio
+      const authResponse = await authService.login(emailOrUsername, password)
+      
+      // Guardar en localStorage
+      localStorage.setItem('auth-token', authResponse.token)
+      localStorage.setItem('user-data', JSON.stringify(authResponse.user))
+      
+      setUser(authResponse.user)
+    } catch (error: any) {
+      console.error('Login error:', error)
+      // Re-lanzar el error con mensaje mejorado
+      const message = error.message || 'Error al iniciar sesión'
+      throw new Error(message)
+    }
   }
 
   const logout = async () => {
-    await authLogout()
-    setUser(null)
+    try {
+      await authService.logout()
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      // Siempre limpiar el estado local
+      setUser(null)
+      localStorage.removeItem('auth-token')
+      localStorage.removeItem('user-data')
+    }
   }
 
   return (

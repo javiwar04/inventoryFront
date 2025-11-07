@@ -159,7 +159,7 @@ export function SidebarNav() {
       ...section,
       items: section.items.filter((item) => {
         if (item.adminOnly) {
-          return userRole === "admin"
+          return userRole === "administrador"
         }
         return true
       }),
@@ -198,7 +198,7 @@ export function SidebarNav() {
             <span className="text-xs text-muted-foreground">Barbería Moderna</span>
           </div>
         </div>
-        {user?.rol === "admin" && (
+        {user?.rol === "administrador" && (
           <Badge variant="outline" className="text-xs px-2 py-0.5">
             <Shield className="h-3 w-3 mr-1" />
             Admin

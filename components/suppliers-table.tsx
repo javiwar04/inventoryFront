@@ -1,75 +1,143 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { MoreHorizontal, Pencil, Trash2, Search, Phone, Mail } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Search, Phone, Mail, Loader2, AlertCircle } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { toast } from "sonner"
+import { proveedoresService, type Proveedor } from "@/lib/api"
+import { SupplierDialog } from "./supplier-dialog"
 
-const mockSuppliers = [
-  {
-    id: 1,
-    name: "Distribuidora Beauty Pro",
-    contact: "Juan Pérez",
-    phone: "5555-1234",
-    email: "ventas@beautypro.com",
-    nit: "12345678-9",
-    products: 25,
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "Importadora Estilo GT",
-    contact: "María López",
-    phone: "5555-5678",
-    email: "info@estilogt.com",
-    nit: "98765432-1",
-    products: 18,
-    status: "active",
-  },
-  {
-    id: 3,
-    name: "Suministros Profesionales",
-    contact: "Carlos Ramírez",
-    phone: "5555-9012",
-    email: "contacto@supro.com",
-    nit: "45678912-3",
-    products: 12,
-    status: "active",
-  },
-  {
-    id: 4,
-    name: "Barbería Supplies Inc",
-    contact: "Ana García",
-    phone: "5555-3456",
-    email: "ventas@barberiasupplies.com",
-    nit: "78912345-6",
-    products: 30,
-    status: "active",
-  },
-  {
-    id: 5,
-    name: "Productos Capilares SA",
-    contact: "Luis Morales",
-    phone: "5555-7890",
-    email: "info@capilares.com",
-    nit: "32165498-7",
-    products: 15,
-    status: "active",
-  },
-]
+interface SuppliersTableProps {
+  onSupplierChange?: () => void
+}
 
-export function SuppliersTable() {
+export function SuppliersTable({ onSupplierChange }: SuppliersTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
+  const [suppliers, setSuppliers] = useState<Proveedor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedSupplier, setSelectedSupplier] = useState<Proveedor | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState<number | null>(null)
 
-  const filteredSuppliers = mockSuppliers.filter(
+  // Cargar proveedores desde la API
+  useEffect(() => {
+    loadSuppliers()
+  }, [])
+
+  const loadSuppliers = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await proveedoresService.getAll()
+      setSuppliers(data)
+    } catch (err: any) {
+      console.error('Error loading suppliers:', err)
+      const errorMessage = err.message || 'Error al cargar proveedores'
+      setError(errorMessage)
+      toast.error("Error al cargar datos", {
+        description: errorMessage,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEdit = (supplier: Proveedor) => {
+    setSelectedSupplier(supplier)
+  }
+
+  const handleDelete = async (id: number) => {
+    const supplier = suppliers.find(s => s.id === id)
+    const supplierName = supplier?.nombre || 'Proveedor'
+    
+    if (!confirm(`¿Estás seguro de que quieres eliminar a ${supplierName}?`)) {
+      return
+    }
+
+    try {
+      setDeleteLoading(id)
+      await proveedoresService.delete(id)
+      toast.success("Proveedor eliminado", {
+        description: `${supplierName} ha sido eliminado del sistema.`,
+      })
+      await loadSuppliers()
+      onSupplierChange?.()
+    } catch (err: any) {
+      console.error('Error deleting supplier:', err)
+      toast.error("Error al eliminar", {
+        description: err.message || 'No se pudo eliminar el proveedor.',
+      })
+    } finally {
+      setDeleteLoading(null)
+    }
+  }
+
+  const handleSupplierSuccess = () => {
+    setSelectedSupplier(null)
+    loadSuppliers()
+    onSupplierChange?.()
+  }
+
+  // Cerrar diálogo cuando se actualiza la lista
+  useEffect(() => {
+    if (selectedSupplier) {
+      // Si el proveedor seleccionado ya no existe en la lista, cerrar el diálogo
+      const exists = suppliers.find(s => s.id === selectedSupplier.id)
+      if (!exists) {
+        setSelectedSupplier(null)
+      }
+    }
+  }, [suppliers, selectedSupplier])
+
+  // Filtrar proveedores
+  const filteredSuppliers = suppliers.filter(
     (supplier) =>
-      supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.nit.includes(searchTerm),
+      supplier.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      supplier.contacto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      supplier.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      supplier.nit?.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  // Mostrar estado de carga
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Cargando proveedores..."
+              disabled
+              className="pl-9"
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="ml-2 text-sm text-muted-foreground">Cargando proveedores...</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Mostrar error
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Error al cargar proveedores: {error}
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -83,6 +151,9 @@ export function SuppliersTable() {
             className="pl-9"
           />
         </div>
+        <Badge variant="outline" className="text-xs">
+          {filteredSuppliers.length} proveedores
+        </Badge>
       </div>
 
       <div className="rounded-lg border border-border bg-card">
@@ -94,61 +165,98 @@ export function SuppliersTable() {
               <TableHead>Teléfono</TableHead>
               <TableHead>Correo</TableHead>
               <TableHead>NIT</TableHead>
-              <TableHead className="text-center">Productos</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredSuppliers.map((supplier) => (
-              <TableRow key={supplier.id}>
-                <TableCell className="font-medium">{supplier.name}</TableCell>
-                <TableCell>{supplier.contact}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Phone className="h-3 w-3" />
-                    {supplier.phone}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Mail className="h-3 w-3" />
-                    {supplier.email}
-                  </div>
-                </TableCell>
-                <TableCell className="font-mono text-sm">{supplier.nit}</TableCell>
-                <TableCell className="text-center">
-                  <Badge variant="secondary">{supplier.products}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="default" className="bg-green-500/10 text-green-700 hover:bg-green-500/20">
-                    Activo
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Eliminar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {filteredSuppliers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  {suppliers.length === 0 ? 'No hay proveedores registrados' : 'No se encontraron proveedores'}
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredSuppliers.map((supplier) => (
+                <TableRow key={supplier.id}>
+                  <TableCell className="font-medium">{supplier.nombre}</TableCell>
+                  <TableCell>{supplier.contacto || '-'}</TableCell>
+                  <TableCell>
+                    {supplier.telefono ? (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Phone className="h-3 w-3" />
+                        {supplier.telefono}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {supplier.email ? (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Mail className="h-3 w-3" />
+                        {supplier.email}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm">{supplier.nit || '-'}</TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={supplier.estado === 'Activo' ? "default" : "secondary"} 
+                      className={supplier.estado === 'Activo'
+                        ? "bg-green-500/10 text-green-700 hover:bg-green-500/20" 
+                        : "bg-red-500/10 text-red-700 hover:bg-red-500/20"
+                      }
+                    >
+                      {supplier.estado}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          disabled={deleteLoading === supplier.id}
+                        >
+                          {deleteLoading === supplier.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MoreHorizontal className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEdit(supplier)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => handleDelete(supplier.id)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
+      
+      {/* Diálogo de edición */}
+      {selectedSupplier && (
+        <SupplierDialog
+          supplier={selectedSupplier}
+          onSuccess={handleSupplierSuccess}
+        />
+      )}
     </div>
   )
 }

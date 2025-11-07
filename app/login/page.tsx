@@ -50,11 +50,11 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="usuario">Usuario</Label>
+              <Label htmlFor="usuario">Email o Usuario</Label>
               <Input
                 id="usuario"
                 type="text"
-                placeholder="admin"
+                placeholder="admin@barberia.com o admin"
                 value={usuario}
                 onChange={(e) => setUsuario(e.target.value)}
                 required
@@ -93,11 +93,12 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 space-y-2 rounded-lg bg-muted p-4 text-sm">
-            <p className="font-semibold">Usuarios de prueba:</p>
+            <p className="font-semibold">🚨 Estado de conexión:</p>
             <div className="space-y-1 text-muted-foreground">
-              <p>Admin: admin / admin123</p>
-              <p>Gerente: gerente / gerente123</p>
-              <p>Empleado: empleado / empleado123</p>
+              <p>Backend: <span className="text-primary">http://localhost:5152</span></p>
+              <p>Si hay error de red, verifica:</p>
+              <p>• Tu API esté corriendo</p>
+              <p>• CORS configurado correctamente</p>
             </div>
           </div>
         </CardContent>

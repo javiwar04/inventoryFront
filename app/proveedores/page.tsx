@@ -1,3 +1,6 @@
+"use client"
+
+import { useState } from "react"
 import { Header } from "@/components/header"
 import { StaticSidebar } from "@/components/static-sidebar"
 import { SupplierDialog } from "@/components/supplier-dialog"
@@ -8,6 +11,12 @@ import { Building2, Package, TrendingUp, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function ProveedoresPage() {
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const handleSupplierSuccess = () => {
+    setRefreshKey(prev => prev + 1)
+  }
+
   return (
     <ProtectedRoute adminOnly>
       <div className="flex h-screen bg-background">
@@ -25,7 +34,7 @@ export default function ProveedoresPage() {
                       Gestiona y administra todos los proveedores de tu barbería
                     </p>
                   </div>
-                  <SupplierDialog />
+                  <SupplierDialog onSuccess={handleSupplierSuccess} />
                 </div>
               </div>
             </div>
@@ -75,7 +84,7 @@ export default function ProveedoresPage() {
                   </div>
                 </div>
                 <div className="p-6">
-                  <SuppliersTable />
+                  <SuppliersTable key={refreshKey} onSupplierChange={handleSupplierSuccess} />
                 </div>
               </div>
             </div>
