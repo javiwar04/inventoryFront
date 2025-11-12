@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -9,140 +9,404 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { UserPlus } from "lucide-react"
-import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
+import { usuariosService, type Usuario } from "@/lib/api"
+import * as bcrypt from "bcryptjs"
 
-const AVAILABLE_PERMISSIONS = [
-  { id: "productos.ver", label: "Ver Productos" },
-  { id: "productos.crear", label: "Crear Productos" },
-  { id: "productos.editar", label: "Editar Productos" },
-  { id: "productos.eliminar", label: "Eliminar Productos" },
-  { id: "entradas.ver", label: "Ver Entradas" },
-  { id: "entradas.crear", label: "Crear Entradas" },
-  { id: "salidas.ver", label: "Ver Salidas" },
-  { id: "salidas.crear", label: "Crear Salidas" },
-  { id: "reportes.ver", label: "Ver Reportes" },
-  { id: "reportes.exportar", label: "Exportar Reportes" },
-]
+interface UserDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  user?: Usuario | null
+  onSuccess?: () => void
+  currentUserId?: number // ID del usuario logueado para saber quién crea
+}
 
-export function UserDialog() {
-  const [open, setOpen] = useState(false)
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
+export function UserDialog({
+  open,
+  onOpenChange,
+  user,
+  onSuccess,
+  currentUserId
+}: UserDialogProps) {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  
+  const [formData, setFormData] = useState({
+    nombre: "",
+    usuario1: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    rol: "empleado",
+    estado: "activo",
+    avatar: ""
+  })
 
-  const handleRoleChange = (role: string) => {
-    // Auto-seleccionar permisos según el rol
-    if (role === "admin") {
-      setSelectedPermissions(["*"])
-    } else if (role === "gerente") {
-      setSelectedPermissions([
-        "productos.ver",
-        "productos.crear",
-        "productos.editar",
-        "entradas.ver",
-        "entradas.crear",
-        "salidas.ver",
-        "salidas.crear",
-        "reportes.ver",
-      ])
-    } else if (role === "empleado") {
-      setSelectedPermissions(["productos.ver", "entradas.ver", "salidas.ver"])
+  useEffect(() => {
+    if (user) {
+      // Modo edición
+      setFormData({
+        nombre: user.nombre || "",
+        usuario1: user.usuario1 || "",
+        email: user.email || "",
+        password: "",
+        confirmPassword: "",
+        rol: user.rol || "empleado",
+        estado: user.estado || "activo",
+        avatar: user.avatar || ""
+      })
+    } else {
+      // Modo creación - resetear formulario
+      setFormData({
+        nombre: "",
+        usuario1: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        rol: "empleado",
+        estado: "activo",
+        avatar: ""
+      })
+    }
+  }, [user, open])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Validaciones
+    if (!formData.nombre.trim()) {
+      toast({
+        title: "Error",
+        description: "El nombre es requerido",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!formData.usuario1.trim()) {
+      toast({
+        title: "Error",
+        description: "El usuario es requerido",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!formData.email.trim()) {
+      toast({
+        title: "Error",
+        description: "El email es requerido",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      toast({
+        title: "Error",
+        description: "El formato del email no es válido",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Si es creación, password es obligatorio
+    if (!user && !formData.password) {
+      toast({
+        title: "Error",
+        description: "La contraseña es requerida",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Si hay password, validar que coincida
+    if (formData.password && formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Las contraseñas no coinciden",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Validar longitud de password
+    if (formData.password && formData.password.length < 6) {
+      toast({
+        title: "Error",
+        description: "La contraseña debe tener al menos 6 caracteres",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      if (user) {
+        // Actualizar usuario existente
+        const updateData: any = {
+          nombre: formData.nombre.trim(),
+          usuario1: formData.usuario1.trim(),
+          email: formData.email.trim(),
+          rol: formData.rol,
+          estado: formData.estado,
+          avatar: formData.avatar.trim() || null
+        }
+
+        // Si hay nueva contraseña, hashearla
+        if (formData.password) {
+          const salt = await bcrypt.genSalt(10)
+          const passwordHash = await bcrypt.hash(formData.password, salt)
+          updateData.passwordHash = passwordHash
+        }
+
+        await usuariosService.update(user.id, updateData)
+
+        toast({
+          title: "Usuario actualizado",
+          description: "El usuario se ha actualizado correctamente"
+        })
+      } else {
+        // Crear nuevo usuario
+        // Hashear password
+        const salt = await bcrypt.genSalt(10)
+        const passwordHash = await bcrypt.hash(formData.password, salt)
+
+        const newUserData = {
+          nombre: formData.nombre.trim(),
+          usuario1: formData.usuario1.trim(),
+          email: formData.email.trim(),
+          passwordHash,
+          rol: formData.rol,
+          estado: formData.estado,
+          avatar: formData.avatar.trim() || null,
+          creadoPor: currentUserId && currentUserId > 0 ? currentUserId : undefined // undefined para omitir el campo
+        }
+
+        console.log("📤 Datos que se enviarán al backend:", newUserData)
+
+        await usuariosService.create(newUserData)
+
+        toast({
+          title: "Usuario creado",
+          description: "El usuario se ha creado correctamente"
+        })
+      }
+
+      onSuccess?.()
+      onOpenChange(false)
+    } catch (error: any) {
+      console.error("Error al guardar usuario:", error)
+      
+      // Detectar errores comunes y mostrar mensajes más claros
+      let errorMessage = error.message || "No se pudo guardar el usuario"
+      
+      // Error de usuario duplicado
+      if (errorMessage.includes("usuario") || errorMessage.includes("Usuario1") || errorMessage.includes("UQ__usuarios__9AFF8FC6")) {
+        errorMessage = "Ya existe un usuario con ese nombre de usuario"
+      }
+      // Error de email duplicado
+      else if (errorMessage.includes("email") || errorMessage.includes("Email") || errorMessage.includes("UQ__usuarios__AB6E6164")) {
+        errorMessage = "Ya existe un usuario con ese email"
+      }
+      // Error genérico de valor duplicado
+      else if (errorMessage.includes("Ya existe") || errorMessage.includes("duplicate") || errorMessage.includes("UNIQUE")) {
+        errorMessage = "El usuario o email ya están registrados en el sistema"
+      }
+      
+      toast({
+        title: "Error al guardar",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
-  const togglePermission = (permissionId: string) => {
-    setSelectedPermissions((prev) =>
-      prev.includes(permissionId) ? prev.filter((p) => p !== permissionId) : [...prev, permissionId],
-    )
-  }
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-0">
-          <UserPlus className="mr-2 h-4 w-4" />
-          Agregar Usuario
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Agregar Nuevo Usuario</DialogTitle>
-          <DialogDescription>Crea un nuevo usuario y asigna sus permisos de acceso al sistema</DialogDescription>
+          <DialogTitle>
+            {user ? "Editar Usuario" : "Nuevo Usuario"}
+          </DialogTitle>
+          <DialogDescription>
+            {user
+              ? "Modifica los datos del usuario"
+              : "Completa los datos para crear un nuevo usuario"}
+          </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="nombre">Nombre Completo</Label>
-              <Input id="nombre" placeholder="Juan Pérez" />
+
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            {/* Nombre completo */}
+            <div className="grid gap-2">
+              <Label htmlFor="nombre">
+                Nombre completo <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="nombre"
+                value={formData.nombre}
+                onChange={(e) =>
+                  setFormData({ ...formData, nombre: e.target.value })
+                }
+                placeholder="Juan Pérez"
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="usuario">Usuario</Label>
-              <Input id="usuario" placeholder="jperez" />
+
+            {/* Usuario */}
+            <div className="grid gap-2">
+              <Label htmlFor="usuario1">
+                Usuario <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="usuario1"
+                value={formData.usuario1}
+                onChange={(e) =>
+                  setFormData({ ...formData, usuario1: e.target.value })
+                }
+                placeholder="juanperez"
+              />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo Electrónico</Label>
-              <Input id="email" type="email" placeholder="juan@barberia.com" />
+
+            {/* Email */}
+            <div className="grid gap-2">
+              <Label htmlFor="email">
+                Email <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                placeholder="juan@example.com"
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input id="password" type="password" placeholder="••••••••" />
+
+            {/* Contraseña */}
+            <div className="grid gap-2">
+              <Label htmlFor="password">
+                Contraseña {!user && <span className="text-red-500">*</span>}
+                {user && <span className="text-sm text-muted-foreground ml-2">(dejar vacío para no cambiar)</span>}
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                placeholder="••••••••"
+              />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="rol">Rol</Label>
-            <Select onValueChange={handleRoleChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar rol" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="admin">Administrador</SelectItem>
-                <SelectItem value="gerente">Gerente</SelectItem>
-                <SelectItem value="empleado">Empleado</SelectItem>
-              </SelectContent>
-            </Select>
+
+            {/* Confirmar contraseña */}
+            {formData.password && (
+              <div className="grid gap-2">
+                <Label htmlFor="confirmPassword">
+                  Confirmar contraseña <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    setFormData({ ...formData, confirmPassword: e.target.value })
+                  }
+                  placeholder="••••••••"
+                />
+              </div>
+            )}
+
+            {/* Rol */}
+            <div className="grid gap-2">
+              <Label htmlFor="rol">
+                Rol <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.rol}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, rol: value })
+                }
+              >
+                <SelectTrigger id="rol">
+                  <SelectValue placeholder="Seleccionar rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="empleado">Empleado</SelectItem>
+                  <SelectItem value="gerente">Gerente</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Estado */}
+            <div className="grid gap-2">
+              <Label htmlFor="estado">
+                Estado <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.estado}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, estado: value })
+                }
+              >
+                <SelectTrigger id="estado">
+                  <SelectValue placeholder="Seleccionar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="activo">Activo</SelectItem>
+                  <SelectItem value="inactivo">Inactivo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Avatar URL (opcional) */}
+            <div className="grid gap-2">
+              <Label htmlFor="avatar">
+                Avatar URL <span className="text-sm text-muted-foreground">(opcional)</span>
+              </Label>
+              <Input
+                id="avatar"
+                value={formData.avatar}
+                onChange={(e) =>
+                  setFormData({ ...formData, avatar: e.target.value })
+                }
+                placeholder="https://example.com/avatar.jpg"
+              />
+            </div>
           </div>
 
-          <div className="space-y-3">
-            <Label>Permisos de Acceso</Label>
-            <div className="rounded-lg border p-4 space-y-3">
-              {selectedPermissions.includes("*") ? (
-                <div className="text-sm text-muted-foreground">
-                  Este usuario tiene acceso completo a todas las funciones del sistema
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {AVAILABLE_PERMISSIONS.map((permission) => (
-                    <div key={permission.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={permission.id}
-                        checked={selectedPermissions.includes(permission.id)}
-                        onCheckedChange={() => togglePermission(permission.id)}
-                      />
-                      <label
-                        htmlFor={permission.id}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {permission.label}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={() => setOpen(false)}>Crear Usuario</Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Guardando..." : user ? "Actualizar" : "Crear"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )

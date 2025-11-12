@@ -1,78 +1,82 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp, TrendingDown } from "lucide-react"
-
-const topProducts = [
-  {
-    id: 1,
-    name: "Laptop Dell XPS 15",
-    movements: 156,
-    trend: "up",
-    percentage: 12,
-  },
-  {
-    id: 2,
-    name: "Mouse Logitech MX Master",
-    movements: 142,
-    trend: "up",
-    percentage: 8,
-  },
-  {
-    id: 3,
-    name: 'Monitor LG 27" 4K',
-    movements: 128,
-    trend: "down",
-    percentage: 5,
-  },
-  {
-    id: 4,
-    name: "Teclado Mecánico RGB",
-    movements: 115,
-    trend: "up",
-    percentage: 15,
-  },
-  {
-    id: 5,
-    name: "SSD 1TB NVMe",
-    movements: 98,
-    trend: "up",
-    percentage: 10,
-  },
-]
+import { TrendingUp, Package, Loader2 } from "lucide-react"
+import { reportesService } from "@/lib/api"
 
 export function TopProductsTable() {
+  const [productos, setProductos] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const topProductos = await reportesService.getTopProductos(10)
+      setProductos(topProductos)
+    } catch (err) {
+      console.error('Error al cargar top productos:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('es-GT', {
+      style: 'currency',
+      currency: 'GTQ',
+      maximumFractionDigits: 0
+    }).format(value)
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Productos Más Movidos</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {topProducts.map((product, index) => (
-            <div key={product.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
-                  {index + 1}
+        {loading ? (
+          <div className="flex items-center justify-center h-[300px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : productos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
+            <Package className="h-12 w-12 mb-2 opacity-50" />
+            <p>No hay movimientos registrados</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {productos.map((producto, index) => (
+              <div key={producto.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
+                    {index + 1}
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{producto.nombre}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {producto.entradas + producto.salidas} movimientos • Rotación: {producto.rotacion}x
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-sm">{product.name}</p>
-                  <p className="text-xs text-muted-foreground">{product.movements} movimientos</p>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    {producto.entradas}E / {producto.salidas}S
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {formatCurrency(producto.valorInventario)}
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {product.trend === "up" ? (
-                  <TrendingUp className="h-4 w-4 text-accent" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-destructive" />
-                )}
-                <Badge variant={product.trend === "up" ? "default" : "secondary"}>
-                  {product.trend === "up" ? "+" : "-"}
-                  {product.percentage}%
-                </Badge>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

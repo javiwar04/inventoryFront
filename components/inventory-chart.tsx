@@ -1,18 +1,87 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
+import { Loader2 } from "lucide-react"
+import { entradasService, salidasService } from "@/lib/api"
 
-const data = [
-  { name: "Ene", entradas: 45, salidas: 32 },
-  { name: "Feb", entradas: 52, salidas: 38 },
-  { name: "Mar", entradas: 48, salidas: 41 },
-  { name: "Abr", entradas: 61, salidas: 45 },
-  { name: "May", entradas: 55, salidas: 48 },
-  { name: "Jun", entradas: 67, salidas: 52 },
-]
+interface ChartData {
+  name: string
+  entradas: number
+  salidas: number
+}
 
 export function InventoryChart() {
+  const [data, setData] = useState<ChartData[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      
+      // Obtener todos los movimientos del año
+      const [entradas, salidas] = await Promise.all([
+        entradasService.getAll(1, 10000),
+        salidasService.getAll(1, 10000)
+      ])
+
+      // Obtener los últimos 6 meses
+      const now = new Date()
+      const monthsData: ChartData[] = []
+      
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const monthName = date.toLocaleDateString('es-GT', { month: 'short' })
+        const year = date.getFullYear()
+        const month = date.getMonth()
+        
+        // Contar entradas del mes
+        const entradasCount = entradas.filter(e => {
+          const entradaDate = new Date(e.fechaEntrada)
+          return entradaDate.getFullYear() === year && entradaDate.getMonth() === month
+        }).length
+        
+        // Contar salidas del mes
+        const salidasCount = salidas.filter(s => {
+          const salidaDate = new Date(s.fechaSalida)
+          return salidaDate.getFullYear() === year && salidaDate.getMonth() === month
+        }).length
+        
+        monthsData.push({
+          name: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+          entradas: entradasCount,
+          salidas: salidasCount
+        })
+      }
+      
+      setData(monthsData)
+    } catch (err) {
+      console.error('Error al cargar datos del gráfico:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Movimientos Mensuales</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[300px]">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>

@@ -9,8 +9,19 @@ import { MoreHorizontal, Pencil, Trash2, Search, Phone, Mail, Loader2, AlertCirc
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
-import { proveedoresService, type Proveedor } from "@/lib/api"
+import { proveedoresService, type Proveedor, registrarAuditoria } from "@/lib/api"
 import { SupplierDialog } from "./supplier-dialog"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface SuppliersTableProps {
   onSupplierChange?: () => void
@@ -23,6 +34,8 @@ export function SuppliersTable({ onSupplierChange }: SuppliersTableProps) {
   const [error, setError] = useState<string | null>(null)
   const [selectedSupplier, setSelectedSupplier] = useState<Proveedor | null>(null)
   const [deleteLoading, setDeleteLoading] = useState<number | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [supplierToDelete, setSupplierToDelete] = useState<Proveedor | null>(null)
 
   // Cargar proveedores desde la API
   useEffect(() => {
@@ -51,13 +64,15 @@ export function SuppliersTable({ onSupplierChange }: SuppliersTableProps) {
     setSelectedSupplier(supplier)
   }
 
-  const handleDelete = async (id: number) => {
-    const supplier = suppliers.find(s => s.id === id)
-    const supplierName = supplier?.nombre || 'Proveedor'
-    
-    if (!confirm(`¿Estás seguro de que quieres eliminar a ${supplierName}?`)) {
-      return
-    }
+  const handleDelete = (supplier: Proveedor) => {
+    setSupplierToDelete(supplier)
+    setConfirmOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!supplierToDelete) return
+    const id = supplierToDelete.id
+    const supplierName = supplierToDelete.nombre || 'Proveedor'
 
     try {
       setDeleteLoading(id)
@@ -67,6 +82,17 @@ export function SuppliersTable({ onSupplierChange }: SuppliersTableProps) {
       })
       await loadSuppliers()
       onSupplierChange?.()
+      try {
+        await registrarAuditoria({
+          accion: 'eliminar',
+          modulo: 'proveedores',
+          descripcion: `Proveedor eliminado: ${supplierName}`,
+          detalles: JSON.stringify(supplierToDelete),
+          registroId: id
+        })
+      } catch (e) {
+        console.warn('No se pudo registrar auditoría (proveedor eliminar)', e)
+      }
     } catch (err: any) {
       console.error('Error deleting supplier:', err)
       toast.error("Error al eliminar", {
@@ -74,6 +100,8 @@ export function SuppliersTable({ onSupplierChange }: SuppliersTableProps) {
       })
     } finally {
       setDeleteLoading(null)
+      setConfirmOpen(false)
+      setSupplierToDelete(null)
     }
   }
 
@@ -235,7 +263,7 @@ export function SuppliersTable({ onSupplierChange }: SuppliersTableProps) {
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="text-destructive"
-                          onClick={() => handleDelete(supplier.id)}
+                          onClick={() => handleDelete(supplier)}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Eliminar
@@ -257,6 +285,24 @@ export function SuppliersTable({ onSupplierChange }: SuppliersTableProps) {
           onSuccess={handleSupplierSuccess}
         />
       )}
+
+      {/* Confirmación de eliminación */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el proveedor seleccionado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="text-destructive">
+              {deleteLoading ? 'Eliminando...' : 'Eliminar definitivamente'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

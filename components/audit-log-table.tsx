@@ -1,108 +1,53 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Eye, Plus, Edit, Trash2, FileText, Package, ArrowDownToLine, ArrowUpFromLine } from "lucide-react"
-
-const auditLogs = [
-  {
-    id: 1,
-    timestamp: "2024-11-03 14:32:15",
-    user: "Juan Pérez",
-    action: "create",
-    module: "Productos",
-    description: "Creó el producto 'Shampoo Profesional 500ml'",
-    details: "SKU: SHP-001, Stock inicial: 24",
-    ipAddress: "192.168.1.45",
-  },
-  {
-    id: 2,
-    timestamp: "2024-11-03 13:15:42",
-    user: "María González",
-    action: "update",
-    module: "Entradas",
-    description: "Registró entrada de productos",
-    details: "Gel Fijador Extra Fuerte - Cantidad: 30 unidades",
-    ipAddress: "192.168.1.52",
-  },
-  {
-    id: 3,
-    timestamp: "2024-11-03 12:08:33",
-    user: "Carlos Ramírez",
-    action: "delete",
-    module: "Productos",
-    description: "Eliminó el producto 'Producto Descontinuado'",
-    details: "SKU: OLD-999, Motivo: Producto descontinuado",
-    ipAddress: "192.168.1.45",
-  },
-  {
-    id: 4,
-    timestamp: "2024-11-03 11:45:20",
-    user: "Ana López",
-    action: "update",
-    module: "Salidas",
-    description: "Registró salida de productos",
-    details: "Cera Modeladora Mate - Cantidad: 5 unidades - Motivo: Venta",
-    ipAddress: "192.168.1.67",
-  },
-  {
-    id: 5,
-    timestamp: "2024-11-03 10:22:18",
-    user: "Juan Pérez",
-    action: "update",
-    module: "Productos",
-    description: "Actualizó precio del producto",
-    details: "Aceite para Barba 30ml - Precio anterior: Q105.00 - Nuevo: Q110.00",
-    ipAddress: "192.168.1.45",
-  },
-  {
-    id: 6,
-    timestamp: "2024-11-03 09:15:05",
-    user: "María González",
-    action: "create",
-    module: "Entradas",
-    description: "Registró entrada de productos",
-    details: "Tinte Permanente Negro - Cantidad: 15 unidades - Proveedor: Distribuidora XYZ",
-    ipAddress: "192.168.1.52",
-  },
-  {
-    id: 7,
-    timestamp: "2024-11-02 16:45:30",
-    user: "Carlos Ramírez",
-    action: "update",
-    module: "Productos",
-    description: "Ajustó stock mínimo",
-    details: "Navajas Desechables - Stock mínimo anterior: 15 - Nuevo: 20",
-    ipAddress: "192.168.1.45",
-  },
-  {
-    id: 8,
-    timestamp: "2024-11-02 15:30:12",
-    user: "Ana López",
-    action: "view",
-    module: "Reportes",
-    description: "Generó reporte de inventario",
-    details: "Período: Octubre 2024 - Formato: PDF",
-    ipAddress: "192.168.1.67",
-  },
-]
+import { Search, Eye, Plus, Edit, Trash2, FileText, Package, ArrowDownToLine, ArrowUpFromLine, Loader2 } from "lucide-react"
+import { auditoriaService, type Auditorium } from "@/lib/api"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "./ui/dialog"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 
 export function AuditLogTable() {
+  const [logs, setLogs] = useState<Auditorium[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterAction, setFilterAction] = useState<string>("all")
+  const [filterModulo, setFilterModulo] = useState<string>("all")
+  const [maxRecords, setMaxRecords] = useState(100)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [selectedDetails, setSelectedDetails] = useState<string | null>(null)
+  const [selectedDescripcion, setSelectedDescripcion] = useState<string | null>(null)
 
-  const filteredLogs = auditLogs.filter((log) => {
+  useEffect(() => {
+    loadLogs()
+  }, [maxRecords])
+
+  const loadLogs = async () => {
+    try {
+      setLoading(true)
+      const data = await auditoriaService.getRecientes(maxRecords)
+      setLogs(data)
+    } catch (error) {
+      console.error('Error al cargar logs de auditoría:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredLogs = logs.filter((log) => {
     const matchesSearch =
-      log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.module.toLowerCase().includes(searchTerm.toLowerCase())
+      log.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.modulo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.detalles?.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesFilter = filterAction === "all" || log.action === filterAction
+    const matchesAction = filterAction === "all" || log.accion?.toLowerCase() === filterAction.toLowerCase()
+    const matchesModulo = filterModulo === "all" || log.modulo?.toLowerCase() === filterModulo.toLowerCase()
 
-    return matchesSearch && matchesFilter
+    return matchesSearch && matchesAction && matchesModulo
   })
 
   const getActionBadge = (action: string) => {
@@ -135,86 +80,172 @@ export function AuditLogTable() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar por usuario, acción o módulo..."
+            placeholder="Buscar por descripción, módulo o detalles..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
           />
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant={filterAction === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilterAction("all")}
-          >
-            Todas
-          </Button>
-          <Button
-            variant={filterAction === "create" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilterAction("create")}
-          >
-            Crear
-          </Button>
-          <Button
-            variant={filterAction === "update" ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setFilterAction("update")}
-          >
-            Actualizar
-          </Button>
-          <Button
-            variant={filterAction === "delete" ? "destructive" : "outline"}
-            size="sm"
-            onClick={() => setFilterAction("delete")}
-          >
-            Eliminar
-          </Button>
+        
+        <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2">
+            <span className="text-sm font-medium text-muted-foreground flex items-center">Acción:</span>
+            <Button
+              variant={filterAction === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterAction("all")}
+            >
+              Todas
+            </Button>
+            <Button
+              variant={filterAction === "crear" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterAction("crear")}
+            >
+              Crear
+            </Button>
+            <Button
+              variant={filterAction === "actualizar" ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setFilterAction("actualizar")}
+            >
+              Actualizar
+            </Button>
+            <Button
+              variant={filterAction === "eliminar" ? "destructive" : "outline"}
+              size="sm"
+              onClick={() => setFilterAction("eliminar")}
+            >
+              Eliminar
+            </Button>
+          </div>
+
+          <div className="flex gap-2 ml-4">
+            <span className="text-sm font-medium text-muted-foreground flex items-center">Módulo:</span>
+            <Button
+              variant={filterModulo === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterModulo("all")}
+            >
+              Todos
+            </Button>
+            <Button
+              variant={filterModulo === "productos" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterModulo("productos")}
+            >
+              Productos
+            </Button>
+            <Button
+              variant={filterModulo === "entradas" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterModulo("entradas")}
+            >
+              Entradas
+            </Button>
+            <Button
+              variant={filterModulo === "salidas" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterModulo("salidas")}
+            >
+              Salidas
+            </Button>
+            <Button
+              variant={filterModulo === "usuarios" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterModulo("usuarios")}
+            >
+              Usuarios
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Fecha y Hora</TableHead>
-              <TableHead>Usuario</TableHead>
-              <TableHead>Módulo</TableHead>
-              <TableHead>Acción</TableHead>
-              <TableHead>Descripción</TableHead>
-              <TableHead className="text-right">Detalles</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredLogs.map((log) => (
-              <TableRow key={log.id}>
-                <TableCell className="font-mono text-sm">{log.timestamp}</TableCell>
-                <TableCell className="font-medium">{log.user}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {getModuleIcon(log.module)}
-                    <span>{log.module}</span>
-                  </div>
-                </TableCell>
-                <TableCell>{getActionBadge(log.action)}</TableCell>
-                <TableCell className="max-w-md">
-                  <div className="text-sm">{log.description}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{log.details}</div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+      {loading ? (
+        <div className="flex items-center justify-center h-32">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="rounded-lg border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Fecha y Hora</TableHead>
+                <TableHead>Usuario</TableHead>
+                <TableHead>Módulo</TableHead>
+                <TableHead>Acción</TableHead>
+                <TableHead>Descripción</TableHead>
+                <TableHead className="text-right">Origen</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {filteredLogs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    No se encontraron registros de auditoría
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredLogs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="font-mono text-sm">
+                      {log.fechaHora ? format(new Date(log.fechaHora), "dd/MM/yyyy HH:mm:ss", { locale: es }) : '-'}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {log.usuario?.nombre || (log as any).usuarioNombre || `Usuario #${log.usuarioId}`}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getModuleIcon(log.modulo)}
+                        <span>{log.modulo}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{getActionBadge(log.accion)}</TableCell>
+                    <TableCell className="max-w-md">
+                      <div className="text-sm">{log.descripcion}</div>
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">
+                      {log.detalles ? (
+                        <Button size="sm" variant="outline" onClick={() => { setSelectedDetails(log.detalles); setSelectedDescripcion(log.descripcion ?? null); setDetailModalOpen(true); }}>
+                          <FileText className="mr-2 h-4 w-4" /> Ver detalles
+                        </Button>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+      {/* Detalles modal */}
+      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Detalles de auditoría</DialogTitle>
+            {selectedDescripcion && <DialogDescription>{selectedDescripcion}</DialogDescription>}
+          </DialogHeader>
+          <div className="mt-4 max-h-[60vh] overflow-auto bg-muted p-4 rounded">
+            <pre className="text-xs whitespace-pre-wrap">{(() => {
+              try {
+                const parsed = selectedDetails ? JSON.parse(selectedDetails) : null
+                return parsed ? JSON.stringify(parsed, null, 2) : (selectedDetails ?? '-')
+              } catch (e) {
+                return selectedDetails ?? '-'
+              }
+            })()}</pre>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setDetailModalOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -120,7 +120,7 @@ export function Header() {
                 <ChevronDown className="h-4 w-4 ml-2 text-slate-300" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 glass-card">
+            <DropdownMenuContent align="end" className="w-64 bg-card border-border rounded-md">
               <DropdownMenuLabel className="pb-2">
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10">

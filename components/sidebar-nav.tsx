@@ -22,6 +22,7 @@ import {
   ChevronRight,
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
+import { usePermissions } from "@/hooks/use-permissions"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 
@@ -34,7 +35,8 @@ interface NavItem {
   description: string
   badge?: string | null
   badgeVariant?: BadgeVariant
-  adminOnly?: boolean
+  permission?: string // Permiso requerido para ver este item
+  adminOnly?: boolean // Mantener por compatibilidad
 }
 
 interface NavSection {
@@ -59,6 +61,7 @@ const navSections: NavSection[] = [
         icon: Package,
         description: "Gestión de inventario",
         badge: null,
+        permission: "productos.ver",
       },
     ],
   },
@@ -72,6 +75,7 @@ const navSections: NavSection[] = [
         description: "Stock entrante",
         badge: "nuevo",
         badgeVariant: "secondary",
+        permission: "entradas.ver",
       },
       {
         title: "Salidas",
@@ -79,6 +83,7 @@ const navSections: NavSection[] = [
         icon: ArrowUpFromLine,
         description: "Stock saliente",
         badge: null,
+        permission: "salidas.ver",
       },
       {
         title: "Vencimientos",
@@ -87,6 +92,7 @@ const navSections: NavSection[] = [
         description: "Productos próximos a vencer",
         badge: "3",
         badgeVariant: "destructive",
+        permission: "productos.ver",
       },
     ],
   },
@@ -98,16 +104,16 @@ const navSections: NavSection[] = [
         href: "/categorias",
         icon: FolderOpen,
         description: "Organizar productos",
-        adminOnly: true,
         badge: null,
+        permission: "categorias.ver",
       },
       {
         title: "Proveedores",
         href: "/proveedores",
         icon: Building2,
         description: "Gestión de proveedores",
-        adminOnly: true,
         badge: null,
+        permission: "proveedores.ver",
       },
     ],
   },
@@ -120,6 +126,7 @@ const navSections: NavSection[] = [
         icon: TrendingUp,
         description: "Estadísticas y reportes",
         badge: null,
+        permission: "reportes.ver",
       },
     ],
   },
@@ -131,16 +138,16 @@ const navSections: NavSection[] = [
         href: "/auditoria",
         icon: ScrollText,
         description: "Registro de actividades",
-        adminOnly: true,
         badge: null,
+        permission: "auditoria.ver",
       },
       {
         title: "Usuarios",
         href: "/usuarios",
         icon: Users,
         description: "Gestión de usuarios",
-        adminOnly: true,
         badge: null,
+        permission: "usuarios.ver",
       },
     ],
   },
@@ -149,22 +156,33 @@ const navSections: NavSection[] = [
 export function SidebarNav() {
   const pathname = usePathname()
   const { user } = useAuth()
+  const { hasPermission, isAdmin } = usePermissions()
 
-  // Asegurar que siempre tengamos una estructura válida
+  // Filtrar secciones según permisos
   const visibleSections = useMemo(() => {
-    // Si no hay usuario, mostrar solo las secciones básicas
-    const userRole = user?.rol || 'empleado'
+    if (!user) return []
     
     return navSections.map((section) => ({
       ...section,
       items: section.items.filter((item) => {
-        if (item.adminOnly) {
-          return userRole === "administrador"
+        // Dashboard siempre visible
+        if (item.href === "/") return true
+        
+        // Si tiene permiso específico, mostrarlo
+        if (item.permission) {
+          return hasPermission(item.permission)
         }
+        
+        // Si es adminOnly y es admin, mostrarlo
+        if (item.adminOnly) {
+          return isAdmin()
+        }
+        
+        // Por defecto, mostrar
         return true
       }),
     })).filter((section) => section.items.length > 0)
-  }, [user?.rol])
+  }, [user, hasPermission, isAdmin])
 
   // Fallback si no hay secciones visibles
   if (!visibleSections || visibleSections.length === 0) {
@@ -198,7 +216,7 @@ export function SidebarNav() {
             <span className="text-xs text-muted-foreground">Barbería Moderna</span>
           </div>
         </div>
-        {user?.rol === "administrador" && (
+        {isAdmin() && (
           <Badge variant="outline" className="text-xs px-2 py-0.5">
             <Shield className="h-3 w-3 mr-1" />
             Admin

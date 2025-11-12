@@ -39,21 +39,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false)
   }, [])
 
-  const login = async (emailOrUsername: string, password: string) => {
+  const login = async (username: string, password: string) => {
     try {
-      // Intentar login con el servicio
-      const authResponse = await authService.login(emailOrUsername, password)
-      
-      // Guardar en localStorage
+      const authResponse = await authService.login(username, password)
       localStorage.setItem('auth-token', authResponse.token)
       localStorage.setItem('user-data', JSON.stringify(authResponse.user))
-      
+      if (authResponse.expiresAt) {
+        localStorage.setItem('auth-exp', authResponse.expiresAt.toString())
+      }
       setUser(authResponse.user)
     } catch (error: any) {
       console.error('Login error:', error)
-      // Re-lanzar el error con mensaje mejorado
-      const message = error.message || 'Error al iniciar sesión'
-      throw new Error(message)
+      throw new Error(error.message || 'Error al iniciar sesión')
     }
   }
 
@@ -67,6 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       localStorage.removeItem('auth-token')
       localStorage.removeItem('user-data')
+      localStorage.removeItem('auth-exp')
+      localStorage.removeItem('user-permissions')
     }
   }
 

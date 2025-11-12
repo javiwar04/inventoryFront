@@ -19,7 +19,7 @@ import { Plus, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
-import { proveedoresService, type Proveedor } from "@/lib/api"
+import { proveedoresService, type Proveedor, registrarAuditoria } from "@/lib/api"
 
 interface SupplierDialogProps {
   supplier?: Proveedor | null
@@ -68,11 +68,34 @@ export function SupplierDialog({ supplier, onSuccess }: SupplierDialogProps) {
         toast.success("Proveedor actualizado", {
           description: `${proveedorData.nombre} ha sido actualizado correctamente.`,
         })
+        try {
+          registrarAuditoria({
+            accion: 'actualizar',
+            modulo: 'proveedores',
+            descripcion: `Proveedor actualizado: ${proveedorData.nombre}`,
+            detalles: JSON.stringify({ id: supplier.id, ...proveedorData }),
+            registroId: supplier.id
+          })
+        } catch (e) {
+          console.warn('No se pudo registrar auditoría (proveedor actualizar)', e)
+        }
       } else {
         await proveedoresService.create(proveedorData)
         toast.success("Proveedor agregado", {
           description: `${proveedorData.nombre} ha sido agregado al sistema.`,
         })
+        try {
+          // registrar auditoría para creación
+          registrarAuditoria({
+            accion: 'crear',
+            modulo: 'proveedores',
+            descripcion: `Proveedor creado: ${proveedorData.nombre}`,
+            detalles: JSON.stringify(proveedorData),
+            registroId: undefined
+          })
+        } catch (e) {
+          console.warn('No se pudo registrar auditoría (proveedor crear)', e)
+        }
       }
 
       // Limpiar formulario y cerrar diálogo
@@ -142,12 +165,14 @@ export function SupplierDialog({ supplier, onSuccess }: SupplierDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button className="gradient-primary hover-lift smooth-transition shadow-lg">
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Proveedor
-        </Button>
-      </DialogTrigger>
+      {!isEditing && (
+        <DialogTrigger asChild>
+          <Button className="gradient-primary hover-lift smooth-transition shadow-lg">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Proveedor
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[600px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>

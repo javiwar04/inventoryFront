@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Package, Building2, Calendar, FileText, DollarSign, AlertCircle } from "lucide-react"
 import { usePermissions } from "@/hooks/use-permissions"
+import { registrarAuditoria } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 
 // Interfaces
@@ -154,6 +155,17 @@ export function EntryDialog() {
     // 2. Actualizar stock en tabla 'productos' 
     // 3. Registrar movimiento en tabla 'movimientos_stock'
     // 4. Crear registro en tabla 'auditoria'
+    try {
+      registrarAuditoria({
+        accion: 'crear',
+        modulo: 'entradas',
+        descripcion: `Entrada de ${cantidad} ${productoSeleccionado.unidad} para ${productoSeleccionado.nombre}`,
+        detalles: JSON.stringify(entradaData),
+        registroId: entradaData.producto_id
+      })
+    } catch (e) {
+      console.warn('No se pudo registrar auditoría de entrada', e)
+    }
     
     alert(`✅ Entrada registrada exitosamente!\n\nProducto: ${productoSeleccionado.nombre}\nCantidad: ${cantidad} ${productoSeleccionado.unidad}\nProveedor: ${proveedorSeleccionado.nombre}\nCosto total: Q${costoFinal.toFixed(2)}`)
     

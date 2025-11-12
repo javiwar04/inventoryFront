@@ -1,8 +1,34 @@
+"use client"
+
 import * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
-function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
+function Input({ className, type, value, defaultValue, onChange, ...props }: React.ComponentProps<'input'>) {
+  // Determine if the parent is controlling the input (passed `value` prop)
+  const isControlled = Object.prototype.hasOwnProperty.call(props, 'value') || value !== undefined
+
+  // Internal state to manage the input when uncontrolled by the parent.
+  const [internalValue, setInternalValue] = React.useState<string>(() => {
+    if (isControlled) return (value as any) ?? ''
+    return (defaultValue as any) ?? ''
+  })
+
+  // Keep internal state in sync if parent switches to controlled mode or updates value
+  React.useEffect(() => {
+    if (isControlled) {
+      setInternalValue((value as any) ?? '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isControlled) setInternalValue(e.target.value)
+    if (onChange) onChange(e)
+  }
+
+  const valueToUse = isControlled ? ((value as any) ?? '') : internalValue
+
   return (
     <input
       type={type}
@@ -13,7 +39,9 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
         'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive',
         className,
       )}
-      {...props}
+      value={valueToUse}
+      onChange={handleChange}
+      {...(props as React.ComponentProps<'input'>)}
     />
   )
 }

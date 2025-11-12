@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,140 +12,57 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Pencil, Trash2, Eye } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Eye, AlertTriangle, Loader2 } from "lucide-react"
 import { usePermissions } from "@/hooks/use-permissions"
+import { ProductDialog } from "@/components/product-dialog"
+import { ProductDetailsDialog } from "@/components/product-details-dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
+import { productosService, type Producto, registrarAuditoria } from "@/lib/api"
 
-const products = [
-  {
-    id: 1,
-    sku: "SHP-001",
-    name: "Shampoo Profesional 500ml",
-    category: "Cuidado Capilar",
-    stock: 24,
-    minStock: 15,
-    price: 85.0,
-    unit: "Botella",
-  },
-  {
-    id: 2,
-    sku: "GEL-002",
-    name: "Gel Fijador Extra Fuerte 250ml",
-    category: "Estilizado",
-    stock: 45,
-    minStock: 20,
-    price: 65.0,
-    unit: "Botella",
-  },
-  {
-    id: 3,
-    sku: "CER-003",
-    name: "Cera Modeladora Mate",
-    category: "Estilizado",
-    stock: 8,
-    minStock: 15,
-    price: 95.0,
-    unit: "Unidad",
-  },
-  {
-    id: 4,
-    sku: "TIN-004",
-    name: "Tinte Permanente Negro",
-    category: "Coloración",
-    stock: 32,
-    minStock: 10,
-    price: 120.0,
-    unit: "Caja",
-  },
-  {
-    id: 5,
-    sku: "NAV-005",
-    name: "Navajas Desechables (Paquete 10)",
-    category: "Herramientas",
-    stock: 5,
-    minStock: 20,
-    price: 45.0,
-    unit: "Paquete",
-  },
-  {
-    id: 6,
-    sku: "ACE-006",
-    name: "Aceite para Barba 30ml",
-    category: "Cuidado de Barba",
-    stock: 67,
-    minStock: 25,
-    price: 110.0,
-    unit: "Botella",
-  },
-  {
-    id: 7,
-    sku: "BAL-007",
-    name: "Bálsamo After Shave 100ml",
-    category: "Cuidado de Barba",
-    stock: 12,
-    minStock: 18,
-    price: 75.0,
-    unit: "Botella",
-  },
-  {
-    id: 8,
-    sku: "POM-008",
-    name: "Pomada Brillante 100g",
-    category: "Estilizado",
-    stock: 89,
-    minStock: 30,
-    price: 85.0,
-    unit: "Unidad",
-  },
-  {
-    id: 9,
-    sku: "ESP-009",
-    name: "Espuma de Afeitar 200ml",
-    category: "Afeitado",
-    stock: 28,
-    minStock: 20,
-    price: 55.0,
-    unit: "Lata",
-  },
-  {
-    id: 10,
-    sku: "TOA-010",
-    name: "Toallas Desechables (Paquete 50)",
-    category: "Suministros",
-    stock: 15,
-    minStock: 10,
-    price: 35.0,
-    unit: "Paquete",
-  },
-  {
-    id: 11,
-    sku: "PEI-011",
-    name: "Peine Profesional Carbono",
-    category: "Herramientas",
-    stock: 42,
-    minStock: 15,
-    price: 25.0,
-    unit: "Unidad",
-  },
-  {
-    id: 12,
-    sku: "CEP-012",
-    name: "Cepillo Barbero Limpieza",
-    category: "Herramientas",
-    stock: 18,
-    minStock: 12,
-    price: 30.0,
-    unit: "Unidad",
-  },
-]
+interface ProductsTableProps { search?: string }
 
-export function ProductsTable() {
-  const [searchTerm, setSearchTerm] = useState("")
+export function ProductsTable({ search }: ProductsTableProps) {
   const { canEdit, canDelete } = usePermissions()
+  const [selected, setSelected] = useState<Producto | null>(null)
+  const [viewDetails, setViewDetails] = useState<Producto | null>(null)
+  const [items, setItems] = useState<Producto[]>([])
+  const [loading, setLoading] = useState(true)
+  const [deleteId, setDeleteId] = useState<number | null>(null)
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase()),
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true)
+        const data = await productosService.getAll()
+        setItems(data)
+      } catch (err: any) {
+        toast.error('Error al cargar productos', { description: err?.message || 'Verifica la API' })
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+
+    const onCreated = (e: any) => {
+      const p = e.detail as Producto
+      setItems(prev => [p, ...prev])
+    }
+    const onUpdated = (e: any) => {
+      const p = e.detail as Producto
+      setItems(prev => prev.map(x => x.id === p.id ? p : x))
+    }
+    window.addEventListener('products:created', onCreated as any)
+    window.addEventListener('products:updated', onUpdated as any)
+    return () => {
+      window.removeEventListener('products:created', onCreated as any)
+      window.removeEventListener('products:updated', onUpdated as any)
+    }
+  }, [])
+
+  const term = (search ?? '').toLowerCase()
+  const filteredProducts = items.filter(
+    (p) => p.nombre.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term)
   )
 
   const getStockStatus = (stock: number, minStock: number) => {
@@ -156,6 +73,74 @@ export function ProductsTable() {
 
   return (
     <div className="rounded-lg border bg-card">
+      {/* Dialog for edit product */}
+      {selected && (
+        <ProductDialog
+          product={selected}
+          onSuccess={() => {
+            setSelected(null)
+            // Recargar lista después de editar
+            productosService.getAll().then(setItems).catch(console.error)
+          }}
+        />
+      )}
+
+      {/* Dialog for view details */}
+      <ProductDetailsDialog
+        product={viewDetails}
+        open={!!viewDetails}
+        onOpenChange={(open) => !open && setViewDetails(null)}
+      />
+
+      {/* Confirm delete */}
+      <AlertDialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              Confirmar eliminación
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El producto será eliminado del inventario.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                const id = deleteId
+                try {
+                  if (id != null) {
+                      // Encontrar producto antes de eliminar para detalles
+                      const prod = items.find(p => p.id === id)
+                      // Si hay API, intentará borrar; si falla, igual actualizamos local
+                      try { await productosService.delete(id as any) } catch {}
+                      setItems((prev) => prev.filter(p => p.id !== id))
+                      toast.success('Producto eliminado', { description: `Se eliminó el producto #${id}.` })
+                      // Registrar auditoría (no bloquear UX si falla)
+                      try {
+                        await registrarAuditoria({
+                          accion: 'eliminar',
+                          modulo: 'productos',
+                          descripcion: `Producto eliminado: ${prod?.nombre ?? ('#' + id)}`,
+                          detalles: JSON.stringify(prod ?? { id }),
+                          registroId: id
+                        })
+                      } catch (e) {
+                        console.warn('No se pudo registrar auditoría (producto eliminar)', e)
+                      }
+                  }
+                } finally {
+                  setDeleteId(null)
+                }
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Table>
         <TableHeader>
           <TableRow>
@@ -169,20 +154,29 @@ export function ProductsTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredProducts.map((product) => {
-            const status = getStockStatus(product.stock, product.minStock)
+          {loading && (
+            <TableRow>
+              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Cargando productos...
+                </div>
+              </TableCell>
+            </TableRow>
+          )}
+          {!loading && filteredProducts.map((product) => {
+            const status = getStockStatus(product.stock_actual, product.stock_minimo)
             return (
               <TableRow key={product.id}>
                 <TableCell className="font-mono text-sm">{product.sku}</TableCell>
-                <TableCell className="font-medium">{product.name}</TableCell>
-                <TableCell>{product.category}</TableCell>
+                <TableCell className="font-medium">{product.nombre}</TableCell>
+                <TableCell>{product.categoria?.nombre || '-'}</TableCell>
                 <TableCell className="text-right">
-                  <span className={product.stock < product.minStock ? "text-destructive font-semibold" : ""}>
-                    {product.stock}
+                  <span className={product.stock_actual < product.stock_minimo ? "text-destructive font-semibold" : ""}>
+                    {product.stock_actual}
                   </span>
-                  <span className="text-muted-foreground text-xs ml-1">/ {product.minStock}</span>
+                  <span className="text-muted-foreground text-xs ml-1">/ {product.stock_minimo}</span>
                 </TableCell>
-                <TableCell className="text-right font-mono">Q{product.price.toFixed(2)}</TableCell>
+                <TableCell className="text-right font-mono">Q{product.precio.toFixed(2)}</TableCell>
                 <TableCell>
                   <Badge variant={status.variant}>{status.label}</Badge>
                 </TableCell>
@@ -196,12 +190,12 @@ export function ProductsTable() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setViewDetails(product)}>
                         <Eye className="mr-2 h-4 w-4" />
                         Ver Detalles
                       </DropdownMenuItem>
                       {canEdit("productos") && (
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setSelected(product)}>
                           <Pencil className="mr-2 h-4 w-4" />
                           Editar
                         </DropdownMenuItem>
@@ -209,7 +203,7 @@ export function ProductsTable() {
                       {canDelete("productos") && (
                         <>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(product.id)}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Eliminar
                           </DropdownMenuItem>

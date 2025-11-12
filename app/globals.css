@@ -157,15 +157,16 @@ body {
 
 /* Efectos de glassmorphism para tarjetas */
 .glass-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  /* Use the card token for an opaque card look. Removed glassmorphism blur/alpha. */
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.12);
   box-shadow: var(--shadow-lg);
 }
 
 .dark .glass-card {
-  background: rgba(30, 32, 43, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  /* Dark mode: keep opaque dark card using the same token */
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.12);
 }
 
 /* Animaciones suaves */

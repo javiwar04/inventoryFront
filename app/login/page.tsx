@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Scissors, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -28,8 +29,16 @@ export default function LoginPage() {
     try {
       await login(usuario, password)
       router.push("/")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al iniciar sesión")
+    } catch (err: any) {
+      const msg = err?.message || "Error al iniciar sesión"
+      setError(msg)
+      // Mostrar toast con más detalle para que no se pierda si hay navegación
+      const status = err?.response?.status
+      const serverMsg = err?.response?.data?.message || err?.response?.data || ''
+      toast.error(`Login fallido${status ? ` (HTTP ${status})` : ''}`, {
+        description: typeof serverMsg === 'string' && serverMsg.length > 0 ? serverMsg : msg,
+        duration: 6000,
+      })
     } finally {
       setIsLoading(false)
     }

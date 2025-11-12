@@ -1,11 +1,35 @@
+"use client"
+
 import { Header } from "@/components/header"
 import { StaticSidebar } from "@/components/static-sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ExpirationTable } from "@/components/expiration-table"
 import { AlertTriangle, Calendar, Package, XCircle } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { usePermissions } from "@/hooks/use-permissions"
 
 export default function ExpirationsPage() {
+  const { canView } = usePermissions()
+
+  if (!canView("productos")) {
+    return (
+      <ProtectedRoute>
+        <div className="flex h-screen bg-background">
+          <StaticSidebar />
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <Header />
+            <main className="flex-1 overflow-y-auto p-6">
+              <Card className="p-8 text-center">
+                <h2 className="text-2xl font-bold mb-2">Acceso Denegado</h2>
+                <p className="text-muted-foreground">No tienes permisos para ver esta página.</p>
+              </Card>
+            </main>
+          </div>
+        </div>
+      </ProtectedRoute>
+    )
+  }
+
   return (
     <ProtectedRoute>
       <div className="flex h-screen">
