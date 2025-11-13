@@ -1,23 +1,24 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import type { DateRange } from 'react-day-picker'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, Package, Loader2 } from "lucide-react"
 import { reportesService } from "@/lib/api"
 
-export function TopProductsTable() {
+export function TopProductsTable({ dateRange }: { dateRange?: DateRange }) {
   const [productos, setProductos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [dateRange])
 
   const loadData = async () => {
     try {
       setLoading(true)
-      const topProductos = await reportesService.getTopProductos(10)
+      const topProductos = await reportesService.getTopProductos(10, dateRange?.from, dateRange?.to)
       setProductos(topProductos)
     } catch (err) {
       console.error('Error al cargar top productos:', err)

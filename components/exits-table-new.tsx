@@ -67,6 +67,12 @@ export function ExitsTable() {
     return new Date(date).toLocaleDateString('es-GT', { year: 'numeric', month: 'short', day: 'numeric' })
   }
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const pageSize = 10
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize))
+  const visibleItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -91,14 +97,14 @@ export function ExitsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.length === 0 ? (
+            {visibleItems.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-muted-foreground">
                   No hay salidas registradas
                 </TableCell>
               </TableRow>
             ) : (
-              items.map(salida => (
+              visibleItems.map(salida => (
                 <TableRow key={salida.id}>
                   <TableCell className="font-mono font-semibold">{salida.numeroSalida}</TableCell>
                   <TableCell>{formatDate(salida.fechaSalida)}</TableCell>
@@ -141,6 +147,19 @@ export function ExitsTable() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Pagination controls */}
+      <div className="flex items-center justify-between p-3">
+        <div className="text-sm text-muted-foreground">Mostrando {((currentPage-1)*pageSize)+1} - {Math.min(currentPage*pageSize, items.length)} de {items.length}</div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>Primera</Button>
+          <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p-1))}>Anterior</Button>
+          <input type="number" className="w-16 text-center rounded border px-1" min={1} max={totalPages} value={currentPage} onChange={(e) => { const v = Number(e.target.value) || 1; setCurrentPage(Math.min(Math.max(1, v), totalPages)) }} />
+          <span className="text-sm self-center">/ {totalPages}</span>
+          <Button size="sm" variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))}>Siguiente</Button>
+          <Button size="sm" variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>Última</Button>
+        </div>
       </div>
 
       <ExitDetailDialog 

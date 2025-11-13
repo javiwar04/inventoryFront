@@ -104,7 +104,7 @@ export function EntryDialog() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     const formData = new FormData(e.currentTarget as HTMLFormElement)
@@ -156,7 +156,7 @@ export function EntryDialog() {
     // 3. Registrar movimiento en tabla 'movimientos_stock'
     // 4. Crear registro en tabla 'auditoria'
     try {
-      registrarAuditoria({
+      await registrarAuditoria({
         accion: 'crear',
         modulo: 'entradas',
         descripcion: `Entrada de ${cantidad} ${productoSeleccionado.unidad} para ${productoSeleccionado.nombre}`,

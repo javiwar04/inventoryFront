@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash2, PackagePlus, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { entradasService, productosService, proveedoresService } from "@/lib/api"
+import { entradasService, productosService, proveedoresService, registrarAuditoria } from "@/lib/api"
 import { useAuth } from "@/contexts/auth-context"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
@@ -144,7 +144,19 @@ export function EntryDialogNew() {
       if (observaciones && observaciones.trim()) payload.Observaciones = observaciones
 
       console.log('=== PAYLOAD ENTRADA ===', JSON.stringify(payload, null, 2))
-      await entradasService.create(payload)
+      const created = await entradasService.create(payload)
+      // Intentar registrar auditoría de la creación
+      try {
+        await registrarAuditoria({
+          accion: 'crear',
+          modulo: 'entradas',
+          descripcion: `Entrada registrada: ${numeroEntrada}`,
+          detalles: JSON.stringify(payload),
+          registroId: (created as any)?.id
+        })
+      } catch (e) {
+        console.warn('No se pudo registrar auditoría (entrada crear)', e)
+      }
       toast.success('Entrada registrada', { 
         description: `${detalles.length} producto(s) agregados al inventario. Total: Q${calcularTotal().toFixed(2)}` 
       })

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import type { DateRange } from 'react-day-picker'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from "recharts"
 import { reportesService } from "@/lib/api"
@@ -14,18 +15,18 @@ const COLORS = [
   "hsl(var(--chart-5))",
 ]
 
-export function CategoryDistribution() {
+export function CategoryDistribution({ dateRange }: { dateRange?: DateRange }) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [dateRange])
 
   const loadData = async () => {
     try {
       setLoading(true)
-      const categorias = await reportesService.getDistribucionCategorias()
+      const categorias = await reportesService.getDistribucionCategorias(dateRange?.from, dateRange?.to)
       const chartData = categorias.map((c, index) => ({
         name: c.categoria,
         value: c.porcentaje,

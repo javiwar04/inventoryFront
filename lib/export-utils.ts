@@ -464,3 +464,82 @@ export const exportarReporteExcel = (data: ExportReporteData) => {
   const fileName = `Reporte_Inventario_${new Date().toISOString().split('T')[0]}.xlsx`
   XLSX.writeFile(wb, fileName)
 }
+
+export const exportarReporteCSV = (data: ExportReporteData) => {
+  const rows: string[] = []
+
+  const escape = (v: any) => {
+    if (v === null || v === undefined) return ''
+    const s = String(v)
+    if (s.includes(',') || s.includes('\n') || s.includes('"')) {
+      return '"' + s.replace(/"/g, '""') + '"'
+    }
+    return s
+  }
+
+  // Helper to write a section
+  const writeSection = (title: string, headers: string[], items: any[]) => {
+    rows.push(title)
+    rows.push(headers.join(','))
+    for (const it of items) {
+      const line = headers.map(h => escape(it[h] ?? ''))
+      rows.push(line.join(','))
+    }
+    rows.push('')
+  }
+
+  // Top Productos
+  if (data.topProductos && data.topProductos.length > 0) {
+    const headers = ['rank', 'nombre', 'sku', 'entradas', 'salidas', 'totalMovimientos', 'rotacion', 'valorInventario']
+    const items = data.topProductos.map((p: any, i: number) => ({
+      rank: i + 1,
+      nombre: p.nombre,
+      sku: p.sku ?? '',
+      entradas: p.entradas ?? 0,
+      salidas: p.salidas ?? 0,
+      totalMovimientos: (p.entradas ?? 0) + (p.salidas ?? 0),
+      rotacion: p.rotacion ?? 0,
+      valorInventario: p.valorInventario ?? 0
+    }))
+    writeSection('Top Productos', headers, items)
+  }
+
+  // Categorías
+  if (data.categorias && data.categorias.length > 0) {
+    const headers = ['categoria', 'productos', 'valor', 'porcentaje']
+    const items = data.categorias.map(c => ({
+      categoria: c.categoria,
+      productos: c.productos,
+      valor: c.valor,
+      porcentaje: c.porcentaje
+    }))
+    writeSection('Distribucion por Categorias', headers, items)
+  }
+
+  // Comparacion mensual
+  if (data.comparacionMensual && data.comparacionMensual.length > 0) {
+    const headers = ['mes', 'entradas', 'salidas', 'diferencia']
+    const items = data.comparacionMensual.map(m => ({ mes: m.mes, entradas: m.entradas, salidas: m.salidas, diferencia: m.diferencia }))
+    writeSection('Comparacion Mensual', headers, items)
+  }
+
+  // Valor inventario
+  if (data.valorInventario && data.valorInventario.length > 0) {
+    const headers = ['mes', 'valor']
+    const items = data.valorInventario.map(v => ({ mes: v.mes, valor: v.valor }))
+    writeSection('Valor Inventario por Mes', headers, items)
+  }
+
+  const csvContent = rows.join('\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+
+  const fileName = `Reporte_Inventario_${new Date().toISOString().split('T')[0]}.csv`
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', fileName)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}

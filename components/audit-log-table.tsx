@@ -17,14 +17,21 @@ export function AuditLogTable() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterAction, setFilterAction] = useState<string>("all")
   const [filterModulo, setFilterModulo] = useState<string>("all")
-  const [maxRecords, setMaxRecords] = useState(100)
+  const [maxRecords, setMaxRecords] = useState(500)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedDetails, setSelectedDetails] = useState<string | null>(null)
   const [selectedDescripcion, setSelectedDescripcion] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const pageSize = 10
 
   useEffect(() => {
     loadLogs()
   }, [maxRecords])
+
+  // Reset page when filters/search change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filterAction, filterModulo, logs?.length])
 
   const loadLogs = async () => {
     try {
@@ -44,11 +51,22 @@ export function AuditLogTable() {
       log.modulo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.detalles?.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesAction = filterAction === "all" || log.accion?.toLowerCase() === filterAction.toLowerCase()
+    // filterAction buttons use Spanish verbs; map to backend action literals
+    const actionMapReverse: Record<string, string> = {
+      crear: 'create',
+      actualizar: 'update',
+      eliminar: 'delete',
+      ver: 'view'
+    }
+    const desiredAction = filterAction === 'all' ? 'all' : (actionMapReverse[filterAction] ?? filterAction)
+    const matchesAction = desiredAction === "all" || log.accion?.toLowerCase() === desiredAction.toLowerCase() || log.accion?.toLowerCase() === filterAction.toLowerCase()
     const matchesModulo = filterModulo === "all" || log.modulo?.toLowerCase() === filterModulo.toLowerCase()
 
     return matchesSearch && matchesAction && matchesModulo
   })
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize))
+  const visibleLogs = filteredLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   const getActionBadge = (action: string) => {
     const badges = {
@@ -183,14 +201,14 @@ export function AuditLogTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLogs.length === 0 ? (
+              {visibleLogs.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     No se encontraron registros de auditoría
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredLogs.map((log) => (
+                visibleLogs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell className="font-mono text-sm">
                       {log.fechaHora ? format(new Date(log.fechaHora), "dd/MM/yyyy HH:mm:ss", { locale: es }) : '-'}
@@ -224,6 +242,28 @@ export function AuditLogTable() {
           </Table>
         </div>
       )}
+      {/* Pagination controls */}
+      <div className="flex items-center justify-between mt-2">
+        <div className="text-sm text-muted-foreground">Mostrando {((currentPage-1)*pageSize)+1} - {Math.min(currentPage*pageSize, filteredLogs.length)} de {filteredLogs.length} registros</div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>Primera</Button>
+          <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}>Anterior</Button>
+          <div className="flex items-center px-2">
+            <span className="text-sm">Página</span>
+            <input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={currentPage}
+              onChange={(e) => { const v = Number(e.target.value) || 1; setCurrentPage(Math.min(Math.max(1, v), totalPages)) }}
+              className="w-16 mx-2 text-center rounded border px-1"
+            />
+            <span className="text-sm">de {totalPages}</span>
+          </div>
+          <Button size="sm" variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}>Siguiente</Button>
+          <Button size="sm" variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>Última</Button>
+        </div>
+      </div>
       {/* Detalles modal */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
         <DialogContent>

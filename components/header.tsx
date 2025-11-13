@@ -70,7 +70,7 @@ export function Header() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold leading-none">Barbería</span>
-            <span className="text-xs text-muted-foreground">Inventario Pro</span>
+            <span className="text-xs text-muted-foreground">Sistema de Inventario</span>
           </div>
         </div>
 

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
+import { format, addDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns"
 import { es } from "date-fns/locale"
 import type { DateRange } from "react-day-picker"
 
@@ -23,6 +23,44 @@ export function DateRangePicker({ className, date, onDateChange }: DateRangePick
   const handleSelect = (range: DateRange | undefined) => {
     setDateRange(range)
     onDateChange?.(range)
+  }
+
+  const applyPreset = (key: string) => {
+    const today = new Date()
+    let from: Date | undefined
+    let to: Date | undefined
+
+    switch (key) {
+      case 'today':
+        from = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+        to = from
+        break
+      case '7':
+        from = addDays(today, -6)
+        to = today
+        break
+      case '30':
+        from = addDays(today, -29)
+        to = today
+        break
+      case '90':
+        from = addDays(today, -89)
+        to = today
+        break
+      case 'month':
+        from = startOfMonth(today)
+        to = endOfMonth(today)
+        break
+      case 'year':
+        from = startOfYear(today)
+        to = endOfYear(today)
+        break
+      default:
+        from = undefined
+        to = undefined
+    }
+
+    handleSelect(from && to ? { from, to } : undefined)
   }
 
   return (
@@ -59,6 +97,14 @@ export function DateRangePicker({ className, date, onDateChange }: DateRangePick
             numberOfMonths={2}
             locale={es}
           />
+          <div className="p-3 border-t flex flex-wrap gap-2 bg-muted/5">
+            <button type="button" onClick={() => applyPreset('today')} className="text-xs px-2 py-1 rounded bg-white/80 hover:bg-white">Hoy</button>
+            <button type="button" onClick={() => applyPreset('7')} className="text-xs px-2 py-1 rounded bg-white/80 hover:bg-white">Últimos 7 días</button>
+            <button type="button" onClick={() => applyPreset('30')} className="text-xs px-2 py-1 rounded bg-white/80 hover:bg-white">Últimos 30 días</button>
+            <button type="button" onClick={() => applyPreset('90')} className="text-xs px-2 py-1 rounded bg-white/80 hover:bg-white">Últimos 90 días</button>
+            <button type="button" onClick={() => applyPreset('month')} className="text-xs px-2 py-1 rounded bg-white/80 hover:bg-white">Mes actual</button>
+            <button type="button" onClick={() => applyPreset('year')} className="text-xs px-2 py-1 rounded bg-white/80 hover:bg-white">Año actual</button>
+          </div>
         </PopoverContent>
       </Popover>
     </div>

@@ -1,23 +1,24 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import type { DateRange } from 'react-day-picker'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts"
 import { reportesService } from "@/lib/api"
 import { Loader2 } from "lucide-react"
 
-export function MonthlyComparison() {
+export function MonthlyComparison({ dateRange }: { dateRange?: DateRange }) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [dateRange])
 
   const loadData = async () => {
     try {
       setLoading(true)
-      const comparacion = await reportesService.getComparacionMensual()
+      const comparacion = await reportesService.getComparacionMensual(dateRange?.from, dateRange?.to)
       setData(comparacion)
     } catch (err) {
       console.error('Error al cargar comparación mensual:', err)

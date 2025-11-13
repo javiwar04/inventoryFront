@@ -762,7 +762,7 @@ export const reportesService = {
   },
 
   // Valor de inventario por mes (últimos 12 meses)
-  async getValorInventarioPorMes() {
+  async getValorInventarioPorMes(fechaInicio?: Date, fechaFin?: Date) {
     const productos = await productosService.getAll()
 
     const meses: { mes: string; valor: number }[] = []
@@ -791,12 +791,27 @@ export const reportesService = {
   },
 
   // Top productos más movidos
-  async getTopProductos(limit: number = 10) {
-    const [productos, entradas, salidas] = await Promise.all([
+  async getTopProductos(limit: number = 10, fechaInicio?: Date, fechaFin?: Date) {
+    const [productos, entradasAll, salidasAll] = await Promise.all([
       productosService.getAll(),
       entradasService.getAll(1, 10000),
       salidasService.getAll(1, 10000)
     ])
+
+    // Filtrar por rango de fechas si se proporcionan
+    const entradas = fechaInicio && fechaFin
+      ? entradasAll.filter(e => {
+          const fecha = new Date(e.fechaEntrada)
+          return fecha >= fechaInicio && fecha <= fechaFin
+        })
+      : entradasAll
+
+    const salidas = fechaInicio && fechaFin
+      ? salidasAll.filter(s => {
+          const fecha = new Date(s.fechaSalida)
+          return fecha >= fechaInicio && fecha <= fechaFin
+        })
+      : salidasAll
 
     const productosStats = productos.map(producto => {
       // Contar entradas del producto
@@ -841,11 +856,22 @@ export const reportesService = {
   },
 
   // Distribución por categorías
-  async getDistribucionCategorias() {
-    const [productos, categorias] = await Promise.all([
+  async getDistribucionCategorias(fechaInicio?: Date, fechaFin?: Date) {
+    const [productos, categorias, entradasAll, salidasAll] = await Promise.all([
       productosService.getAll(),
-      categoriasService.getAll()
+      categoriasService.getAll(),
+      entradasService.getAll(1, 10000),
+      salidasService.getAll(1, 10000)
     ])
+
+    // Si hay rango, podemos filtrar movimientos para calcular valores más precisos
+    const entradas = fechaInicio && fechaFin
+      ? entradasAll.filter(e => new Date(e.fechaEntrada) >= fechaInicio && new Date(e.fechaEntrada) <= fechaFin)
+      : entradasAll
+
+    const salidas = fechaInicio && fechaFin
+      ? salidasAll.filter(s => new Date(s.fechaSalida) >= fechaInicio && new Date(s.fechaSalida) <= fechaFin)
+      : salidasAll
 
     const categoriasStats = categorias.map(categoria => {
       const productosCategoria = productos.filter(p => p.categoria_id === categoria.id)
@@ -871,11 +897,19 @@ export const reportesService = {
   },
 
   // Comparación mensual (últimos 6 meses)
-  async getComparacionMensual() {
-    const [entradas, salidas] = await Promise.all([
+  async getComparacionMensual(fechaInicio?: Date, fechaFin?: Date) {
+    const [entradasAll, salidasAll] = await Promise.all([
       entradasService.getAll(1, 10000),
       salidasService.getAll(1, 10000)
     ])
+
+    const entradas = fechaInicio && fechaFin
+      ? entradasAll.filter(e => new Date(e.fechaEntrada) >= fechaInicio && new Date(e.fechaEntrada) <= fechaFin)
+      : entradasAll
+
+    const salidas = fechaInicio && fechaFin
+      ? salidasAll.filter(s => new Date(s.fechaSalida) >= fechaInicio && new Date(s.fechaSalida) <= fechaFin)
+      : salidasAll
 
     const meses: { mes: string; entradas: number; salidas: number; diferencia: number }[] = []
     const now = new Date()

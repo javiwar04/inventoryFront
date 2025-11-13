@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Header } from "@/components/header"
 import { StaticSidebar } from "@/components/static-sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,8 +13,8 @@ import { Download, FileText, Calendar, TrendingUp, Loader2, FileSpreadsheet } fr
 import { DateRangePicker } from "@/components/date-range-picker"
 import type { DateRange } from "react-day-picker"
 import { ProtectedRoute } from "@/components/protected-route"
-import { reportesService } from "@/lib/api"
-import { exportarReportePDF, exportarReporteExcel } from "@/lib/export-utils"
+import { reportesService, productosService, proveedoresService, categoriasService } from "@/lib/api"
+import { exportarReportePDF, exportarReporteExcel, exportarReporteCSV } from "@/lib/export-utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,10 +35,42 @@ export default function ReportsPage() {
   })
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [productQuery, setProductQuery] = useState('')
+  const [productSuggestions, setProductSuggestions] = useState<any[]>([])
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
+  const [providerQuery, setProviderQuery] = useState('')
+  const [providerSuggestions, setProviderSuggestions] = useState<any[]>([])
+  const [selectedProvider, setSelectedProvider] = useState<any | null>(null)
+  const [categories, setCategories] = useState<any[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
+  const [savedFilters, setSavedFilters] = useState<any[]>([])
+  const productTimer = useRef<number | null>(null)
+  const providerTimer = useRef<number | null>(null)
 
   useEffect(() => {
     loadStats()
   }, [dateRange])
+
+  useEffect(() => {
+    // Load categories and saved filters
+    (async () => {
+      try {
+        const cats = await categoriasService.getAll()
+        setCategories(cats)
+      } catch (e) {
+        console.warn('No se pudieron cargar categorías', e)
+      }
+      const saved = localStorage.getItem('report-filter-presets')
+      if (saved) {
+        try {
+          setSavedFilters(JSON.parse(saved))
+        } catch (e) {
+          console.warn('Error parseando filtros guardados', e)
+        }
+      }
+    })()
+  }, [])
 
   const loadStats = async () => {
     try {
@@ -62,10 +94,10 @@ export default function ReportsPage() {
 
       // Cargar todos los datos necesarios
       const [topProductos, categorias, comparacionMensual, valorInventario] = await Promise.all([
-        reportesService.getTopProductos(10),
-        reportesService.getDistribucionCategorias(),
-        reportesService.getComparacionMensual(),
-        reportesService.getValorInventarioPorMes()
+        reportesService.getTopProductos(10, dateRange?.from, dateRange?.to),
+        reportesService.getDistribucionCategorias(dateRange?.from, dateRange?.to),
+        reportesService.getComparacionMensual(dateRange?.from, dateRange?.to),
+        reportesService.getValorInventarioPorMes(dateRange?.from, dateRange?.to)
       ])
 
       const data = {
@@ -94,6 +126,132 @@ export default function ReportsPage() {
     } finally {
       setExporting(false)
       toast.dismiss()
+    }
+  }
+
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true)
+      toast.loading('Generando CSV...')
+
+      const [topProductos, categorias, comparacionMensual, valorInventario] = await Promise.all([
+        reportesService.getTopProductos(1000, dateRange?.from, dateRange?.to),
+        reportesService.getDistribucionCategorias(dateRange?.from, dateRange?.to),
+        reportesService.getComparacionMensual(dateRange?.from, dateRange?.to),
+        reportesService.getValorInventarioPorMes(dateRange?.from, dateRange?.to)
+      ])
+
+      const data = {
+        titulo: 'Reporte de Inventario',
+        stats,
+        topProductos,
+        categorias,
+        comparacionMensual,
+        valorInventario,
+        fechaGeneracion: new Date(),
+        rangoFechas: dateRange?.from && dateRange?.to 
+          ? { inicio: dateRange.from, fin: dateRange.to }
+          : undefined
+      }
+
+      exportarReporteCSV(data)
+      toast.success('CSV generado')
+    } catch (err) {
+      console.error('Error al generar CSV:', err)
+      toast.error('Error al generar CSV')
+    } finally {
+      setExporting(false)
+      toast.dismiss()
+    }
+  }
+
+  // Simple product/provider search helpers
+  const searchProducts = async (term: string) => {
+    // debounce simple
+    if (productTimer.current) window.clearTimeout(productTimer.current)
+    productTimer.current = window.setTimeout(async () => {
+      if (!term || term.length < 2) {
+        setProductSuggestions([])
+        return
+      }
+      try {
+        const results = await productosService.search(term)
+        setProductSuggestions(results)
+      } catch (e) {
+        console.warn('Error buscando productos', e)
+      }
+    }, 300) as unknown as number
+  }
+
+  const searchProviders = async (term: string) => {
+    if (providerTimer.current) window.clearTimeout(providerTimer.current)
+    providerTimer.current = window.setTimeout(async () => {
+      if (!term || term.length < 2) {
+        setProviderSuggestions([])
+        return
+      }
+      try {
+        const results = await proveedoresService.search(term)
+        setProviderSuggestions(results)
+      } catch (e) {
+        console.warn('Error buscando proveedores', e)
+      }
+    }, 300) as unknown as number
+  }
+
+  const clearFilterBadge = (key: string) => {
+    switch (key) {
+      case 'product':
+        setSelectedProduct(null); setProductQuery(''); break
+      case 'category':
+        setSelectedCategory(null); break
+      case 'provider':
+        setSelectedProvider(null); setProviderQuery(''); break
+    }
+  }
+
+  const deleteSavedFilter = (idx: number) => {
+    const copy = [...savedFilters]
+    copy.splice(idx, 1)
+    setSavedFilters(copy)
+    localStorage.setItem('report-filter-presets', JSON.stringify(copy))
+    toast.success('Filtro eliminado')
+  }
+
+  const renameSavedFilter = (idx: number) => {
+    const nuevo = prompt('Nuevo nombre para el filtro:', savedFilters[idx]?.name ?? '')
+    if (!nuevo) return
+    const copy = [...savedFilters]
+    copy[idx].name = nuevo
+    setSavedFilters(copy)
+    localStorage.setItem('report-filter-presets', JSON.stringify(copy))
+    toast.success('Filtro renombrado')
+  }
+
+  const saveFilter = (name: string) => {
+    const preset = {
+      name,
+      dateRange: dateRange ? { from: dateRange.from?.toISOString(), to: dateRange.to?.toISOString() } : null,
+      productId: selectedProduct?.id ?? null,
+      categoryId: selectedCategory ?? null,
+      providerId: selectedProvider?.id ?? null
+    }
+    const existing = [...savedFilters, preset]
+    setSavedFilters(existing)
+    localStorage.setItem('report-filter-presets', JSON.stringify(existing))
+    toast.success('Filtro guardado')
+  }
+
+  const applySavedFilter = (preset: any) => {
+    try {
+      if (preset.dateRange) {
+        setDateRange({ from: new Date(preset.dateRange.from), to: new Date(preset.dateRange.to) })
+      }
+      if (preset.productId) setSelectedProduct({ id: preset.productId })
+      if (preset.categoryId) setSelectedCategory(preset.categoryId)
+      if (preset.providerId) setSelectedProvider({ id: preset.providerId })
+    } catch (e) {
+      console.warn('Error aplicando preset', e)
     }
   }
 
@@ -152,8 +310,112 @@ export default function ReportsPage() {
                       <FileSpreadsheet className="mr-2 h-4 w-4" />
                       Exportar como Excel
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportCSV()}>
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      Exportar como CSV
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </div>
+            </div>
+
+            {/* Filters quick panel */}
+            <div className="mt-4 mb-6">
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={() => setShowFilters(s => !s)}>
+                  {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+                </Button>
+                <div className="flex gap-2 items-center">
+                  <div className="text-sm text-muted-foreground">Filtros guardados:</div>
+                  <select className="border rounded p-1 text-sm" onChange={(e) => {
+                    const idx = Number(e.target.value)
+                    if (!isNaN(idx) && savedFilters[idx]) applySavedFilter(savedFilters[idx])
+                  }}>
+                    <option value="">-- seleccionar --</option>
+                    {savedFilters.map((s, i) => (
+                      <option key={i} value={i}>{s.name}</option>
+                    ))}
+                  </select>
+                  {savedFilters.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <div className="text-xs text-muted-foreground">Gestionar:</div>
+                      <div className="flex gap-1">
+                        {savedFilters.map((s, i) => (
+                          <div key={i} className="flex items-center gap-1 bg-muted/10 rounded px-2 py-1 text-xs">
+                            <span>{s.name}</span>
+                            <button onClick={() => renameSavedFilter(i)} className="text-primary underline">Editar</button>
+                            <button onClick={() => deleteSavedFilter(i)} className="text-destructive underline">Eliminar</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {showFilters && (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Producto</label>
+                    <input value={productQuery} onChange={(e) => { setProductQuery(e.target.value); searchProducts(e.target.value) }} className="w-full border rounded p-2 text-sm" placeholder="Buscar producto..." />
+                    {productSuggestions.length > 0 && (
+                      <div className="border rounded max-h-40 overflow-auto bg-card mt-1">
+                        {productSuggestions.map(p => (
+                          <div key={p.id} onClick={() => { setSelectedProduct(p); setProductSuggestions([]); setProductQuery(p.nombre) }} className="p-2 hover:bg-muted/10 cursor-pointer text-sm">{p.nombre} ({p.sku})</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-muted-foreground">Categoría</label>
+                    <select value={selectedCategory ?? ''} onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : null)} className="w-full border rounded p-2 text-sm">
+                      <option value="">-- Todas --</option>
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-muted-foreground">Proveedor</label>
+                    <input value={providerQuery} onChange={(e) => { setProviderQuery(e.target.value); searchProviders(e.target.value) }} className="w-full border rounded p-2 text-sm" placeholder="Buscar proveedor..." />
+                    {providerSuggestions.length > 0 && (
+                      <div className="border rounded max-h-40 overflow-auto bg-card mt-1">
+                        {providerSuggestions.map(p => (
+                          <div key={p.id} onClick={() => { setSelectedProvider(p); setProviderSuggestions([]); setProviderQuery(p.nombre) }} className="p-2 hover:bg-muted/10 cursor-pointer text-sm">{p.nombre}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs text-muted-foreground">Acciones</label>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => saveFilter(prompt('Nombre para guardar este filtro:') || 'Filtro sin nombre')}>Guardar filtro</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setSelectedProduct(null); setSelectedCategory(null); setSelectedProvider(null); setProductQuery(''); setProviderQuery('') }}>Limpiar</Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Active filter badges */}
+              <div className="mt-3 flex items-center gap-2">
+                {selectedProduct && (
+                  <div className="px-3 py-1 rounded bg-primary/10 text-sm flex items-center gap-2">
+                    <span>{selectedProduct.nombre}</span>
+                    <button onClick={() => clearFilterBadge('product')} className="text-muted-foreground">×</button>
+                  </div>
+                )}
+                {selectedCategory && (
+                  <div className="px-3 py-1 rounded bg-primary/10 text-sm flex items-center gap-2">
+                    <span>{categories.find(c => c.id === selectedCategory)?.nombre ?? 'Categoría'}</span>
+                    <button onClick={() => clearFilterBadge('category')} className="text-muted-foreground">×</button>
+                  </div>
+                )}
+                {selectedProvider && (
+                  <div className="px-3 py-1 rounded bg-primary/10 text-sm flex items-center gap-2">
+                    <span>{selectedProvider.nombre}</span>
+                    <button onClick={() => clearFilterBadge('provider')} className="text-muted-foreground">×</button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -209,13 +471,13 @@ export default function ReportsPage() {
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2 mb-6">
-                  <StockValueChart />
-                  <CategoryDistribution />
+                  <StockValueChart dateRange={dateRange} />
+                  <CategoryDistribution dateRange={dateRange} />
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2 mb-6">
-                  <MonthlyComparison />
-                  <TopProductsTable />
+                  <MonthlyComparison dateRange={dateRange} />
+                  <TopProductsTable dateRange={dateRange} />
                 </div>
               </>
             )}

@@ -1,23 +1,24 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import type { DateRange } from 'react-day-picker'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts"
 import { reportesService } from "@/lib/api"
 import { Loader2 } from "lucide-react"
 
-export function StockValueChart() {
+export function StockValueChart({ dateRange }: { dateRange?: DateRange }) {
   const [data, setData] = useState<{ mes: string; valor: number }[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [dateRange])
 
   const loadData = async () => {
     try {
       setLoading(true)
-      const valorInventario = await reportesService.getValorInventarioPorMes()
+      const valorInventario = await reportesService.getValorInventarioPorMes(dateRange?.from, dateRange?.to)
       setData(valorInventario)
     } catch (err) {
       console.error('Error al cargar valor de inventario:', err)

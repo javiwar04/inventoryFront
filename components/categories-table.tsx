@@ -71,6 +71,12 @@ export function CategoriesTable() {
       category.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const pageSize = 10
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / pageSize))
+  const visibleCategories = filteredCategories.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   // Mostrar estado de carga
   if (loading) {
     return (
@@ -191,14 +197,14 @@ export function CategoriesTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCategories.length === 0 ? (
+            {visibleCategories.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                   {categories.length === 0 ? 'No hay categorías registradas' : 'No se encontraron categorías'}
                 </TableCell>
               </TableRow>
             ) : (
-              filteredCategories.map((category) => (
+              visibleCategories.map((category) => (
                 <TableRow key={category.id}>
                   <TableCell className="font-mono text-sm">{(category as any).codigo ?? '-'}</TableCell>
                   <TableCell className="font-medium">{category.nombre}</TableCell>
@@ -229,6 +235,18 @@ export function CategoriesTable() {
             )}
           </TableBody>
         </Table>
+        {/* Pagination */}
+        <div className="flex items-center justify-between p-3">
+          <div className="text-sm text-muted-foreground">Mostrando {((currentPage-1)*pageSize)+1} - {Math.min(currentPage*pageSize, filteredCategories.length)} de {filteredCategories.length}</div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>Primera</Button>
+            <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p-1))}>Anterior</Button>
+            <input type="number" className="w-16 text-center rounded border px-1" min={1} max={totalPages} value={currentPage} onChange={(e) => { const v = Number(e.target.value) || 1; setCurrentPage(Math.min(Math.max(1, v), totalPages)) }} />
+            <span className="text-sm self-center">/ {totalPages}</span>
+            <Button size="sm" variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))}>Siguiente</Button>
+            <Button size="sm" variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>Última</Button>
+          </div>
+        </div>
       </div>
     </div>
   )

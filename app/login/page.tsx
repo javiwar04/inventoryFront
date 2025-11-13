@@ -101,15 +101,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 space-y-2 rounded-lg bg-muted p-4 text-sm">
-            <p className="font-semibold">🚨 Estado de conexión:</p>
-            <div className="space-y-1 text-muted-foreground">
-              <p>Backend: <span className="text-primary">http://localhost:5152</span></p>
-              <p>Si hay error de red, verifica:</p>
-              <p>• Tu API esté corriendo</p>
-              <p>• CORS configurado correctamente</p>
-            </div>
-          </div>
+          {/* Se eliminó el panel de 'Estado de conexión' ahora que la integración está completa */}
         </CardContent>
       </Card>
     </div>

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash2, PackageMinus, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { salidasService, productosService } from "@/lib/api"
+import { salidasService, productosService, registrarAuditoria } from "@/lib/api"
 import { useAuth } from "@/contexts/auth-context"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
@@ -140,7 +140,19 @@ export function ExitDialogNew() {
       if (observaciones && observaciones.trim()) payload.Observaciones = observaciones
 
       console.log('=== PAYLOAD SALIDA ===', JSON.stringify(payload, null, 2))
-      await salidasService.create(payload)
+      const created = await salidasService.create(payload)
+      // Intentar registrar auditoría de la creación
+      try {
+        await registrarAuditoria({
+          accion: 'crear',
+          modulo: 'salidas',
+          descripcion: `Salida registrada: ${numeroSalida}`,
+          detalles: JSON.stringify(payload),
+          registroId: (created as any)?.id
+        })
+      } catch (e) {
+        console.warn('No se pudo registrar auditoría (salida crear)', e)
+      }
       toast.success('Salida registrada', { 
         description: `${detalles.length} producto(s) retirados del inventario` 
       })

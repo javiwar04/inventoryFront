@@ -19,14 +19,49 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus } from "lucide-react"
 import { usePermissions } from "@/hooks/use-permissions"
+import { registrarAuditoria } from "@/lib/api"
 
 export function ExitDialog() {
   const [open, setOpen] = useState(false)
   const { canCreate } = usePermissions()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Aquí iría la lógica para registrar la salida
+
+    // Recoger datos del formulario
+    const form = e.currentTarget as HTMLFormElement
+    const formData = new FormData(form)
+    const productoId = formData.get('product')
+    const cantidad = parseInt((formData.get('quantity') as string) || '0')
+    const fecha = formData.get('date')
+    const motivo = formData.get('reason')
+    const destino = formData.get('destination')
+    const referencia = formData.get('reference')
+    const notas = formData.get('notes')
+
+    const salidaData = {
+      productoId,
+      cantidad,
+      fecha,
+      motivo,
+      destino,
+      referencia,
+      notas
+    }
+
+    // Aquí iría la lógica para registrar la salida en la API
+    try {
+      await registrarAuditoria({
+        accion: 'crear',
+        modulo: 'salidas',
+        descripcion: `Salida de ${cantidad} unidades (producto: ${productoId})`,
+        detalles: JSON.stringify(salidaData),
+        registroId: typeof productoId === 'string' ? parseInt(productoId) : undefined
+      })
+    } catch (e) {
+      console.warn('No se pudo registrar auditoría de salida', e)
+    }
+
     setOpen(false)
   }
 
