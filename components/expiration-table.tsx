@@ -1,112 +1,104 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, AlertTriangle, CheckCircle2, XCircle } from "lucide-react"
 
-const expirationData = [
-  {
-    id: 1,
-    sku: "SHP-001",
-    product: "Shampoo Profesional 500ml",
-    batch: "LOT-2024-001",
-    quantity: 12,
-    expirationDate: "2025-02-15",
-    daysUntilExpiration: 104,
-    status: "ok",
-  },
-  {
-    id: 2,
-    sku: "TIN-004",
-    product: "Tinte Permanente Negro",
-    batch: "LOT-2024-045",
-    quantity: 8,
-    expirationDate: "2025-01-20",
-    daysUntilExpiration: 78,
-    status: "warning",
-  },
-  {
-    id: 3,
-    sku: "ACE-006",
-    product: "Aceite para Barba 30ml",
-    batch: "LOT-2024-089",
-    quantity: 15,
-    expirationDate: "2024-12-10",
-    daysUntilExpiration: 37,
-    status: "warning",
-  },
-  {
-    id: 4,
-    sku: "BAL-007",
-    product: "Bálsamo After Shave 100ml",
-    batch: "LOT-2024-023",
-    quantity: 5,
-    expirationDate: "2024-11-25",
-    daysUntilExpiration: 22,
-    status: "critical",
-  },
-  {
-    id: 5,
-    sku: "ESP-009",
-    product: "Espuma de Afeitar 200ml",
-    batch: "LOT-2024-067",
-    quantity: 20,
-    expirationDate: "2025-03-30",
-    daysUntilExpiration: 147,
-    status: "ok",
-  },
-  {
-    id: 6,
-    sku: "CER-003",
-    product: "Cera Modeladora Mate",
-    batch: "LOT-2024-012",
-    quantity: 3,
-    expirationDate: "2024-11-15",
-    daysUntilExpiration: 12,
-    status: "critical",
-  },
-  {
-    id: 7,
-    sku: "GEL-002",
-    product: "Gel Fijador Extra Fuerte 250ml",
-    batch: "LOT-2024-078",
-    quantity: 25,
-    expirationDate: "2025-04-10",
-    daysUntilExpiration: 158,
-    status: "ok",
-  },
-  {
-    id: 8,
-    sku: "POM-008",
-    product: "Pomada Brillante 100g",
-    batch: "LOT-2024-034",
-    quantity: 18,
-    expirationDate: "2024-12-28",
-    daysUntilExpiration: 55,
-    status: "warning",
-  },
-]
+import { productosService, entradasService, VProductoVencimiento } from "@/lib/api"
+
+const expirationDataSeed: VProductoVencimiento[] = []
 
 export function ExpirationTable() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [data, setData] = useState<VProductoVencimiento[]>(expirationDataSeed)
+  const [loading, setLoading] = useState(true)
 
-  const filteredData = expirationData.filter((item) => {
+  useEffect(() => {
+    loadVencimientos()
+  }, [])
+
+  const loadVencimientos = async () => {
+    try {
+      setLoading(true)
+      
+      try {
+        const entradas = await entradasService.getAll(1, 10000)
+        
+        // Construir lista de vencimientos desde lotes de entradas
+        const vencimientos: VProductoVencimiento[] = []
+        
+        // Agregar lotes de entradas con fecha de vencimiento
+        entradas.forEach(entrada => {
+          if (entrada.detalleEntrada) {
+            entrada.detalleEntrada.forEach(detalle => {
+              if (detalle.fechaVencimiento && detalle.lote) {
+                try {
+                  const fechaVenc = new Date(detalle.fechaVencimiento)
+                  const hoy = new Date()
+                  hoy.setHours(0, 0, 0, 0)
+                  
+                  const diasVenc = Math.ceil((fechaVenc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+                  
+                  let estado = 'ok'
+                  if (diasVenc < 0) estado = 'expired'
+                  else if (diasVenc <= 30) estado = 'critical'
+                  else if (diasVenc <= 90) estado = 'warning'
+                  
+                  vencimientos.push({
+                    id: detalle.id,
+                    sku: detalle.producto?.sku || '',
+                    nombre: detalle.producto?.nombre || 'Producto desconocido',
+                    numeroLote: detalle.lote,
+                    fechaVencimiento: detalle.fechaVencimiento,
+                    stockLote: detalle.cantidad,
+                    diasVencimiento: diasVenc,
+                    estadoVencimiento: estado
+                  })
+                } catch (err) {
+                  console.error('Error parseando lote:', err)
+                }
+              }
+            })
+          }
+        })
+        
+        // Ordenar por días de vencimiento (más próximos primero)
+        vencimientos.sort((a, b) => (a.diasVencimiento ?? 999) - (b.diasVencimiento ?? 999))
+        
+        setData(vencimientos)
+      } catch (apiErr) {
+        console.error('Error construyendo vencimientos:', apiErr)
+        setData([])
+      }
+    } catch (err) {
+      console.error('Error cargando vencimientos:', err)
+      setData([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredData = data.filter((item) => {
+    const product = item.nombre || ''
+    const batch = item.numeroLote || ''
     const matchesSearch =
-      item.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.batch.toLowerCase().includes(searchTerm.toLowerCase())
+      batch.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesFilter = filterStatus === "all" || item.status === filterStatus
+    const mappedStatus = (item.estadoVencimiento || 'ok').toLowerCase()
+    const matchesFilter = filterStatus === "all" || mappedStatus === filterStatus
 
     return matchesSearch && matchesFilter
   })
 
   const getStatusBadge = (status: string, days: number) => {
-    if (status === "critical") {
+    const s = (status || 'ok').toLowerCase()
+    if (s === "critical") {
       return (
         <Badge variant="destructive" className="gap-1">
           <XCircle className="h-3 w-3" />
@@ -114,7 +106,7 @@ export function ExpirationTable() {
         </Badge>
       )
     }
-    if (status === "warning") {
+    if (s === "warning") {
       return (
         <Badge variant="secondary" className="gap-1">
           <AlertTriangle className="h-3 w-3" />
@@ -168,7 +160,10 @@ export function ExpirationTable() {
       </div>
 
       <div className="rounded-lg border bg-card">
-        <Table>
+        {loading ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">Cargando vencimientos...</div>
+        ) : (
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>SKU</TableHead>
@@ -184,20 +179,19 @@ export function ExpirationTable() {
             {filteredData.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                <TableCell className="font-medium">{item.product}</TableCell>
-                <TableCell className="font-mono text-sm text-muted-foreground">{item.batch}</TableCell>
-                <TableCell className="text-right">{item.quantity} unidades</TableCell>
-                <TableCell>{new Date(item.expirationDate).toLocaleDateString("es-GT")}</TableCell>
-                <TableCell>{getStatusBadge(item.status, item.daysUntilExpiration)}</TableCell>
+                <TableCell className="font-medium">{item.nombre}</TableCell>
+                <TableCell className="font-mono text-sm text-muted-foreground">{item.numeroLote}</TableCell>
+                <TableCell className="text-right">{item.stockLote} unidades</TableCell>
+                <TableCell>{item.fechaVencimiento ? new Date(item.fechaVencimiento).toLocaleDateString("es-GT") : '-'}</TableCell>
+                <TableCell>{getStatusBadge(item.estadoVencimiento, item.diasVencimiento ?? 0)}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm">
-                    Ver Detalles
-                  </Button>
+                  <Button variant="ghost" size="sm">Ver Detalles</Button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+          </Table>
+        )}
       </div>
     </div>
   )

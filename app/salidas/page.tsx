@@ -12,6 +12,7 @@ import { Search, Download, Calendar, TrendingDown, Package, Loader2 } from "luci
 import { ProtectedRoute } from "@/components/protected-route"
 import { usePermissions } from "@/hooks/use-permissions"
 import { salidasService } from "@/lib/api"
+import { toast } from "sonner"
 
 export default function ExitsPage() {
   const { canView, canCreate } = usePermissions()
@@ -61,6 +62,38 @@ export default function ExitsPage() {
       console.error('Error al cargar estadísticas:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      const salidas = await salidasService.getAll(1, 1000)
+      
+      const headers = ['Número', 'Fecha', 'Motivo', 'Destino', 'Productos', 'Estado']
+      const rows = salidas.map(salida => [
+        salida.numeroSalida || '',
+        new Date(salida.fechaSalida).toLocaleDateString('es-GT'),
+        salida.motivo || '',
+        salida.destino || '',
+        (salida.detalleSalida?.length || (salida as any).DetalleSalida?.length || 0).toString(),
+        salida.estado || ''
+      ])
+      
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n')
+      
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `salidas_${new Date().toISOString().split('T')[0]}.csv`
+      link.click()
+      
+      toast.success(`${salidas.length} salidas exportadas exitosamente`)
+    } catch (error) {
+      toast.error('Error al exportar salidas')
+      console.error('Error al exportar:', error)
     }
   }
 
@@ -143,7 +176,7 @@ export default function ExitsPage() {
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input type="search" placeholder="Buscar por producto, destino o referencia..." className="pl-10" />
                   </div>
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={handleExport}>
                     <Download className="mr-2 h-4 w-4" />
                     Exportar
                   </Button>

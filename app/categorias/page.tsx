@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ProtectedRoute } from "@/components/protected-route"
 import { NoFlashWrapper } from "@/components/no-flash-wrapper"
 import { usePermissions } from "@/hooks/use-permissions"
-import { FolderOpen, Package, Loader2 } from "lucide-react"
+import { FolderOpen, Package, Loader2, Download } from "lucide-react"
 import { categoriasService, productosService } from "@/lib/api"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
 
 export default function CategoriasPage() {
   const { canView, canCreate } = usePermissions()
@@ -45,6 +47,42 @@ export default function CategoriasPage() {
       console.error('Error al cargar estadísticas:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      const [categorias, productos] = await Promise.all([
+        categoriasService.getAll(),
+        productosService.getAll()
+      ])
+
+      const headers = ['Nombre', 'Descripción', 'Productos', 'Estado']
+      const rows = categorias.map(cat => {
+        const cantProductos = productos.filter(p => p.categoria_id === cat.id).length
+        return [
+          cat.nombre || '',
+          cat.descripcion || '',
+          cantProductos.toString(),
+          cat.estado || ''
+        ]
+      })
+      
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n')
+      
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `categorias_${new Date().toISOString().split('T')[0]}.csv`
+      link.click()
+      
+      toast.success(`${categorias.length} categorías exportadas exitosamente`)
+    } catch (error) {
+      toast.error('Error al exportar categorías')
+      console.error('Error al exportar:', error)
     }
   }
 
@@ -114,8 +152,12 @@ export default function CategoriasPage() {
                   </div>
 
                   <Card>
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between">
                       <CardTitle>Lista de Categorías</CardTitle>
+                      <Button variant="outline" size="sm" onClick={handleExport}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Exportar
+                      </Button>
                     </CardHeader>
                     <CardContent>
                       <CategoriesTable key={refreshKey} />

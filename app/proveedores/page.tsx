@@ -7,10 +7,12 @@ import { SupplierDialog } from "@/components/supplier-dialog"
 import { SuppliersTable } from "@/components/suppliers-table"
 import { StatsCard } from "@/components/stats-card"
 import { ProtectedRoute } from "@/components/protected-route"
-import { Building2, Package, TrendingUp, Loader2 } from "lucide-react"
+import { Building2, Package, TrendingUp, Loader2, Download } from "lucide-react"
 import { proveedoresService, productosService, entradasService } from "@/lib/api"
 import { usePermissions } from "@/hooks/use-permissions"
 import { Card } from "@/components/ui/card"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
 
 export default function ProveedoresPage() {
   const { canView, canCreate } = usePermissions()
@@ -60,6 +62,39 @@ export default function ProveedoresPage() {
 
   const handleSupplierSuccess = () => {
     setRefreshKey(prev => prev + 1)
+  }
+
+  const handleExport = async () => {
+    try {
+      const proveedores = await proveedoresService.getAll()
+      
+      const headers = ['Nombre', 'Contacto', 'Email', 'Teléfono', 'Dirección', 'NIT', 'Estado']
+      const rows = proveedores.map(prov => [
+        prov.nombre || '',
+        prov.contacto || '',
+        prov.email || '',
+        prov.telefono || '',
+        prov.direccion || '',
+        prov.nit || '',
+        prov.estado || ''
+      ])
+      
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n')
+      
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `proveedores_${new Date().toISOString().split('T')[0]}.csv`
+      link.click()
+      
+      toast.success(`${proveedores.length} proveedores exportados exitosamente`)
+    } catch (error) {
+      toast.error('Error al exportar proveedores')
+      console.error('Error al exportar:', error)
+    }
   }
 
   const formatCurrency = (value: number) => {
@@ -155,6 +190,10 @@ export default function ProveedoresPage() {
                             Administra la información de todos tus proveedores
                           </p>
                         </div>
+                        <Button variant="outline" size="sm" onClick={handleExport}>
+                          <Download className="mr-2 h-4 w-4" />
+                          Exportar
+                        </Button>
                       </div>
                     </div>
                     <div className="p-6">

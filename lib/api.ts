@@ -121,6 +121,18 @@ export interface DetalleSalida {
   lote: string | null
 }
 
+// Vista: Productos próximos a vencimiento
+export interface VProductoVencimiento {
+  id: number
+  sku: string
+  nombre: string
+  numeroLote: string
+  fechaVencimiento: string | null
+  stockLote: number
+  diasVencimiento?: number | null
+  estadoVencimiento: string
+}
+
 export interface Auditorium {
   id: number
   usuarioId: number | null
@@ -138,6 +150,17 @@ export interface Auditorium {
   usuarioNombre?: string | null
 }
 
+export interface Configuracion {
+  id: number
+  clave: string
+  valor: string | null
+  descripcion: string | null
+  tipo: string | null
+  categoria: string | null
+  fechaActualizacion: string | null
+  actualizadoPor: number | null
+}
+
 export interface AuthResponse {
   user: Usuario
   token: string
@@ -146,7 +169,7 @@ export interface AuthResponse {
 }
 
 // ============================================================================
-// SERVICIOS DE AUTENTICACIÓN (usando UsuariosController)
+// SERVICIOS DE AUTENTICACIÓN Y USUARIOS
 // ============================================================================
 
 export const authService = {
@@ -160,9 +183,31 @@ export const authService = {
       let expiresAt: number | undefined
       try {
         const payloadBase64 = token.split('.')[1]
-        const json = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')))
-        if (json && typeof json.exp === 'number') {
-          expiresAt = json.exp
+        if (payloadBase64) {
+          // decode base64 in browser or Node (Buffer fallback)
+          const decodeBase64 = (b64: string) => {
+            try {
+              if (typeof globalThis !== 'undefined' && typeof (globalThis as any).atob === 'function') {
+                return (globalThis as any).atob(b64)
+              }
+            } catch (e) {
+              // fallthrough to Buffer
+            }
+            try {
+              return Buffer.from(b64, 'base64').toString('utf8')
+            } catch (e) {
+              return ''
+            }
+          }
+
+          const normalized = payloadBase64.replace(/-/g, '+').replace(/_/g, '/')
+          const jsonText = decodeBase64(normalized)
+          if (jsonText) {
+            const json = JSON.parse(jsonText)
+            if (json && typeof json.exp === 'number') {
+              expiresAt = json.exp
+            }
+          }
         }
       } catch (e) {
         console.warn('No se pudo decodificar JWT para expiración', e)
@@ -206,7 +251,7 @@ export const authService = {
 }
 
 // ============================================================================
-// SERVICIOS DE USUARIOS (basado en UsuariosController)
+// SERVICIOS DE USUARIOS 
 // ============================================================================
 
 export const usuariosService = {
@@ -315,7 +360,7 @@ export const usuariosService = {
 }
 
 // ============================================================================
-// SERVICIOS DE PERMISOS (basado en PermisosController)
+// SERVICIOS DE PERMISOS 
 // ============================================================================
 
 export const permisosService = {
@@ -363,7 +408,7 @@ export const permisosService = {
 }
 
 // ============================================================================
-// SERVICIOS DE PRODUCTOS (basado en ProductosController)
+// SERVICIOS DE PRODUCTOS 
 // ============================================================================
 
 // Helper para mapear PascalCase del backend a snake_case del frontend
@@ -441,7 +486,7 @@ export const productosService = {
 }
 
 // ============================================================================
-// SERVICIOS DE PROVEEDORES (basado en ProveedoresController)
+// SERVICIOS DE PROVEEDORES 
 // ============================================================================
 
 export const proveedoresService = {
@@ -592,7 +637,7 @@ export const salidasService = {
 }
 
 // ============================================================================
-// SERVICIOS DE CATEGORÍAS (si tienes endpoints específicos)
+// SERVICIOS DE CATEGORÍAS 
 // ============================================================================
 
 export const categoriasService = {
@@ -673,8 +718,8 @@ export const statsService = {
   // Obtener movimientos recientes (últimas entradas y salidas)
   async getMovimientosRecientes(limit: number = 10): Promise<any[]> {
     const [entradas, salidas] = await Promise.all([
-      entradasService.getAll(1, limit),
-      salidasService.getAll(1, limit)
+      entradasService.getAll(1, 1000),
+      salidasService.getAll(1, 1000)
     ])
 
     const movimientos = [
@@ -685,7 +730,13 @@ export const statsService = {
         fecha: e.fechaEntrada,
         descripcion: `Entrada de ${e.proveedor?.nombre || 'Sin proveedor'}`,
         total: e.total,
-        estado: e.estado
+        estado: e.estado,
+        productos: (e.detalleEntrada || []).map(d => ({
+          productoId: d.productoId,
+          nombre: d.producto?.nombre || (d.producto as any)?.Nombre || 'Desconocido',
+          sku: d.producto?.sku || (d.producto as any)?.SKU || '',
+          cantidad: d.cantidad
+        })),
       })),
       ...salidas.map(s => ({
         id: `S-${s.id}`,
@@ -694,7 +745,13 @@ export const statsService = {
         fecha: s.fechaSalida,
         descripcion: `Salida - ${s.motivo}`,
         destino: s.destino,
-        estado: s.estado
+        estado: s.estado,
+        productos: (s.detalleSalida || []).map(d => ({
+          productoId: d.productoId,
+          nombre: d.producto?.nombre || (d.producto as any)?.Nombre || 'Desconocido',
+          sku: d.producto?.sku || (d.producto as any)?.SKU || '',
+          cantidad: d.cantidad
+        })),
       }))
     ]
 
@@ -763,7 +820,11 @@ export const reportesService = {
 
   // Valor de inventario por mes (últimos 12 meses)
   async getValorInventarioPorMes(fechaInicio?: Date, fechaFin?: Date) {
-    const productos = await productosService.getAll()
+    const [productos, entradasAll, salidasAll] = await Promise.all([
+      productosService.getAll(),
+      entradasService.getAll(1, 10000),
+      salidasService.getAll(1, 10000)
+    ])
 
     const meses: { mes: string; valor: number }[] = []
     const now = new Date()
@@ -772,18 +833,45 @@ export const reportesService = {
     for (let i = 11; i >= 0; i--) {
       const fecha = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const mesNombre = fecha.toLocaleDateString('es-GT', { month: 'short', year: 'numeric' })
+      const finMes = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0, 23, 59, 59)
       
-      // Para simplificar, usamos el valor actual del inventario
-      // En un sistema más completo, deberías tener un snapshot del inventario cada mes
-      // Aquí simulamos variación basada en el mes
-      const factorVariacion = 1 + ((i - 6) * 0.05) // Variación gradual
-      const valorMes = productos.reduce((sum, p) => 
-        sum + (p.stock_actual * (p.costo || p.precio || 0)), 0
-      ) * factorVariacion
+      // Calcular stock de cada producto hasta ese mes
+      let valorTotal = 0
+      
+      for (const producto of productos) {
+        // Entradas hasta ese mes
+        const entradasHastaMes = entradasAll.filter(e => {
+          const fechaEntrada = new Date(e.fechaEntrada)
+          return fechaEntrada <= finMes && 
+                 e.detalleEntrada?.some(d => d.productoId === producto.id)
+        })
+        
+        const cantidadEntradas = entradasHastaMes.reduce((sum, e) => {
+          const detalle = e.detalleEntrada?.find(d => d.productoId === producto.id)
+          return sum + (detalle?.cantidad || 0)
+        }, 0)
+        
+        // Salidas hasta ese mes
+        const salidasHastaMes = salidasAll.filter(s => {
+          const fechaSalida = new Date(s.fechaSalida)
+          return fechaSalida <= finMes && 
+                 s.detalleSalida?.some(d => d.productoId === producto.id)
+        })
+        
+        const cantidadSalidas = salidasHastaMes.reduce((sum, s) => {
+          const detalle = s.detalleSalida?.find(d => d.productoId === producto.id)
+          return sum + (detalle?.cantidad || 0)
+        }, 0)
+        
+        // Stock en ese mes
+        const stockMes = cantidadEntradas - cantidadSalidas
+        const costoUnitario = producto.costo || producto.precio || 0
+        valorTotal += Math.max(0, stockMes) * costoUnitario
+      }
 
       meses.push({
         mes: mesNombre,
-        valor: Math.max(0, valorMes)
+        valor: Math.round(valorTotal)
       })
     }
 
@@ -1133,6 +1221,84 @@ export async function registrarAuditoria(audit: Partial<Auditorium>) {
   }
 }
 
+// ============================================================================
+// SERVICIO DE CONFIGURACIÓN
+// ============================================================================
+export const configuracionService = {
+  // GET /api/configuracion
+  async getAll(): Promise<Configuracion[]> {
+    const response = await api.get('/configuracion')
+    return response.data
+  },
+
+  // GET /api/configuracion/{id}
+  async getById(id: number): Promise<Configuracion> {
+    const response = await api.get(`/configuracion/${id}`)
+    return response.data
+  },
+
+  // GET /api/configuracion/clave/{clave}
+  async getByClave(clave: string): Promise<Configuracion> {
+    const response = await api.get(`/configuracion/clave/${encodeURIComponent(clave)}`)
+    return response.data
+  },
+
+  // GET /api/configuracion/categoria/{categoria}
+  async getByCategoria(categoria: string): Promise<Configuracion[]> {
+    const response = await api.get(`/configuracion/categoria/${encodeURIComponent(categoria)}`)
+    return response.data
+  },
+
+  // POST /api/configuracion
+  async create(config: {
+    clave: string
+    valor?: string | null
+    descripcion?: string | null
+    tipo?: string | null
+    categoria?: string | null
+    actualizadoPor?: number | null
+  }): Promise<Configuracion> {
+    const payload = {
+      Clave: config.clave,
+      Valor: config.valor,
+      Descripcion: config.descripcion,
+      Tipo: config.tipo,
+      Categoria: config.categoria,
+      ActualizadoPor: config.actualizadoPor,
+      FechaActualizacion: new Date().toISOString()
+    }
+    const response = await api.post('/configuracion', payload)
+    return response.data
+  },
+
+  // PUT /api/configuracion/{id}
+  async update(id: number, config: {
+    clave?: string
+    valor?: string | null
+    descripcion?: string | null
+    tipo?: string | null
+    categoria?: string | null
+    actualizadoPor?: number | null
+  }): Promise<void> {
+    const payload = {
+      Id: id,
+      Clave: config.clave,
+      Valor: config.valor,
+      Descripcion: config.descripcion,
+      Tipo: config.tipo,
+      Categoria: config.categoria,
+      ActualizadoPor: config.actualizadoPor,
+      FechaActualizacion: new Date().toISOString()
+    }
+    await api.put(`/configuracion/${id}`, payload)
+  },
+
+  // DELETE /api/configuracion/{id}
+  async delete(id: number): Promise<void> {
+    await api.delete(`/configuracion/${id}`)
+  }
+}
+
 // Exportar todo como un objeto por defecto para facilidad de uso
 export default {
   auth: authService,
@@ -1145,5 +1311,37 @@ export default {
   categorias: categoriasService,
   stats: statsService,
   reportes: reportesService,
-  auditoria: auditoriaService
+  auditoria: auditoriaService,
+  configuracion: configuracionService
+}
+
+// ============================================================================
+// SERVICIO DE VENCIMIENTOS (vista VProductosVencimiento)
+// ============================================================================
+export const vencimientosService = {
+  // GET /api/vencimientos
+  async getAll(): Promise<VProductoVencimiento[]> {
+    const response = await api.get('/vencimientos')
+    // Backend may return FechaVencimiento as DateOnly; normalize to ISO string
+    return response.data.map((v: any) => ({
+      id: v.id,
+      sku: v.sku || v.Sku || '',
+      nombre: v.nombre || v.Nombre || '',
+      numeroLote: v.numeroLote || v.NumeroLote || v.lote || v.Lote || '',
+      fechaVencimiento: v.fechaVencimiento ? (typeof v.fechaVencimiento === 'string' ? v.fechaVencimiento : new Date(v.fechaVencimiento).toISOString()) : null,
+      stockLote: v.stockLote ?? v.StockLote ?? 0,
+      diasVencimiento: v.diasVencimiento ?? v.DiasVencimiento ?? null,
+      estadoVencimiento: v.estadoVencimiento || v.EstadoVencimiento || 'ok'
+    }))
+  },
+
+  async getByEstado(estado: string): Promise<VProductoVencimiento[]> {
+    const response = await api.get(`/vencimientos/estado/${encodeURIComponent(estado)}`)
+    return response.data
+  },
+
+  async getByProducto(productoId: number): Promise<VProductoVencimiento[]> {
+    const response = await api.get(`/vencimientos/producto/${productoId}`)
+    return response.data
+  }
 }

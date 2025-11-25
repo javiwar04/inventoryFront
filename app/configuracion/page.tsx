@@ -25,189 +25,20 @@ import {
   Info,
   Building2,
   Clock,
-  DollarSign
+  DollarSign,
+  Loader2
 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
-import { useToast } from "@/hooks/use-toast"
-
-interface ConfiguracionSistema {
-  id: number
-  clave: string
-  valor: string
-  descripcion: string
-  categoria: 'general' | 'inventario' | 'notificaciones' | 'seguridad' | 'empresa'
-  tipo: 'string' | 'number' | 'boolean' | 'json'
-  fecha_actualizacion: string
-  actualizado_por: number
-}
-
-const configuracionesDefault: ConfiguracionSistema[] = [
-  // Configuraciones de Empresa
-  {
-    id: 1,
-    clave: 'empresa_nombre',
-    valor: 'Barbería Premium',
-    descripcion: 'Nombre de la empresa o barbería',
-    categoria: 'empresa',
-    tipo: 'string',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  {
-    id: 2,
-    clave: 'empresa_direccion',
-    valor: 'Calle Principal #123, Ciudad',
-    descripcion: 'Dirección física de la barbería',
-    categoria: 'empresa',
-    tipo: 'string',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  {
-    id: 3,
-    clave: 'empresa_telefono',
-    valor: '+1 234-567-8900',
-    descripcion: 'Número de teléfono principal',
-    categoria: 'empresa',
-    tipo: 'string',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  {
-    id: 4,
-    clave: 'empresa_email',
-    valor: 'info@barberiapremium.com',
-    descripcion: 'Email principal de la empresa',
-    categoria: 'empresa',
-    tipo: 'string',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  
-  // Configuraciones de Inventario
-  {
-    id: 5,
-    clave: 'stock_minimo_default',
-    valor: '10',
-    descripcion: 'Cantidad mínima de stock por defecto para nuevos productos',
-    categoria: 'inventario',
-    tipo: 'number',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  {
-    id: 6,
-    clave: 'dias_alerta_vencimiento',
-    valor: '30',
-    descripcion: 'Días antes del vencimiento para mostrar alerta',
-    categoria: 'inventario',
-    tipo: 'number',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  {
-    id: 7,
-    clave: 'auto_descuento_stock',
-    valor: 'true',
-    descripcion: 'Descontar automáticamente del stock al registrar salidas',
-    categoria: 'inventario',
-    tipo: 'boolean',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  {
-    id: 8,
-    clave: 'moneda_sistema',
-    valor: 'USD',
-    descripcion: 'Moneda principal del sistema (USD, EUR, MXN, etc.)',
-    categoria: 'inventario',
-    tipo: 'string',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  
-  // Configuraciones de Notificaciones
-  {
-    id: 9,
-    clave: 'notificaciones_email',
-    valor: 'true',
-    descripcion: 'Habilitar notificaciones por email',
-    categoria: 'notificaciones',
-    tipo: 'boolean',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  {
-    id: 10,
-    clave: 'notificaciones_stock_bajo',
-    valor: 'true',
-    descripcion: 'Notificar cuando el stock esté bajo',
-    categoria: 'notificaciones',
-    tipo: 'boolean',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  {
-    id: 11,
-    clave: 'notificaciones_vencimientos',
-    valor: 'true',
-    descripcion: 'Notificar productos próximos a vencer',
-    categoria: 'notificaciones',
-    tipo: 'boolean',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  
-  // Configuraciones de Seguridad
-  {
-    id: 12,
-    clave: 'sesion_timeout_minutos',
-    valor: '120',
-    descripcion: 'Tiempo en minutos antes de cerrar sesión automáticamente',
-    categoria: 'seguridad',
-    tipo: 'number',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  {
-    id: 13,
-    clave: 'password_min_length',
-    valor: '8',
-    descripcion: 'Longitud mínima requerida para contraseñas',
-    categoria: 'seguridad',
-    tipo: 'number',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  {
-    id: 14,
-    clave: 'backup_automatico',
-    valor: 'true',
-    descripcion: 'Realizar respaldos automáticos de la base de datos',
-    categoria: 'seguridad',
-    tipo: 'boolean',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  },
-  
-  // Configuración General con JSON
-  {
-    id: 15,
-    clave: 'configuracion_smtp',
-    valor: '{"servidor": "smtp.gmail.com", "puerto": 587, "ssl": true, "usuario": "", "password": ""}',
-    descripcion: 'Configuración del servidor SMTP para envío de emails',
-    categoria: 'general',
-    tipo: 'json',
-    fecha_actualizacion: new Date().toISOString(),
-    actualizado_por: 1
-  }
-]
+import { toast } from "sonner"
+import { configuracionService, type Configuracion, registrarAuditoria } from "@/lib/api"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function ConfiguracionPage() {
-  const [configuraciones, setConfiguraciones] = useState<ConfiguracionSistema[]>(configuracionesDefault)
-  const [isLoading, setIsLoading] = useState(false)
+  const { user } = useAuth()
+  const [configuraciones, setConfiguraciones] = useState<Configuracion[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
   const [categoriaActiva, setCategoriaActiva] = useState<string>('general')
-  const { toast } = useToast()
 
   const categorias = [
     { id: 'general', nombre: 'General', icon: Settings, color: 'text-gray-500' },
@@ -216,6 +47,25 @@ export default function ConfiguracionPage() {
     { id: 'notificaciones', nombre: 'Notificaciones', icon: Bell, color: 'text-orange-500' },
     { id: 'seguridad', nombre: 'Seguridad', icon: Shield, color: 'text-red-500' },
   ]
+
+  useEffect(() => {
+    cargarConfiguraciones()
+  }, [])
+
+  const cargarConfiguraciones = async () => {
+    setIsLoading(true)
+    try {
+      const data = await configuracionService.getAll()
+      setConfiguraciones(data)
+    } catch (error) {
+      console.error('Error cargando configuraciones:', error)
+      toast.error('Error al cargar configuraciones', {
+        description: 'No se pudieron cargar las configuraciones del sistema'
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const configuracionesFiltradas = configuraciones.filter(
     config => config.categoria === categoriaActiva
@@ -227,9 +77,7 @@ export default function ConfiguracionPage() {
         config.id === id 
           ? { 
               ...config, 
-              valor: nuevoValor, 
-              fecha_actualizacion: new Date().toISOString(),
-              actualizado_por: 1 // ID del usuario actual
+              valor: nuevoValor
             }
           : config
       )
@@ -237,39 +85,64 @@ export default function ConfiguracionPage() {
   }
 
   const guardarConfiguraciones = async () => {
-    setIsLoading(true)
+    setIsSaving(true)
     
     try {
-      // Simular guardado en base de datos
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // Actualizar todas las configuraciones modificadas
+      const promises = configuraciones.map(config => 
+        configuracionService.update(config.id, {
+          clave: config.clave,
+          valor: config.valor,
+          descripcion: config.descripcion,
+          tipo: config.tipo,
+          categoria: config.categoria,
+          actualizadoPor: user?.id
+        })
+      )
       
-      toast({
-        title: "✅ Configuraciones guardadas",
-        description: "Los cambios se han aplicado exitosamente",
-        variant: "default"
+      await Promise.all(promises)
+      
+      // Registrar auditoría
+      await registrarAuditoria({
+        accion: 'actualizar',
+        modulo: 'configuracion',
+        descripcion: `Configuraciones del sistema actualizadas`,
+        detalles: JSON.stringify({ categoria: categoriaActiva })
       })
+      
+      toast.success('Configuraciones guardadas', {
+        description: 'Los cambios se han aplicado exitosamente'
+      })
+      
+      // Recargar para obtener las fechas actualizadas del backend
+      await cargarConfiguraciones()
     } catch (error) {
-      toast({
-        title: "❌ Error al guardar",
-        description: "No se pudieron guardar las configuraciones",
-        variant: "destructive"
+      console.error('Error al guardar:', error)
+      toast.error('Error al guardar', {
+        description: 'No se pudieron guardar las configuraciones'
       })
     } finally {
-      setIsLoading(false)
+      setIsSaving(false)
     }
   }
 
-  const resetearConfiguraciones = () => {
-    setConfiguraciones(configuracionesDefault)
-    toast({
-      title: "🔄 Configuraciones restablecidas",
-      description: "Se han restaurado los valores por defecto",
-      variant: "default"
-    })
+  const resetearConfiguraciones = async () => {
+    try {
+      await cargarConfiguraciones()
+      toast.success('Configuraciones recargadas', {
+        description: 'Se han restaurado los valores desde la base de datos'
+      })
+    } catch (error) {
+      toast.error('Error', {
+        description: 'No se pudieron recargar las configuraciones'
+      })
+    }
   }
 
-  const renderCampo = (config: ConfiguracionSistema) => {
-    switch (config.tipo) {
+  const renderCampo = (config: Configuracion) => {
+    const tipo = config.tipo?.toLowerCase() || 'string'
+    
+    switch (tipo) {
       case 'boolean':
         return (
           <div className="flex items-center space-x-2">
@@ -290,7 +163,7 @@ export default function ConfiguracionPage() {
         return (
           <Input
             type="number"
-            value={config.valor}
+            value={config.valor || ''}
             onChange={(e) => updateConfiguracion(config.id, e.target.value)}
             className="w-full"
           />
@@ -299,7 +172,7 @@ export default function ConfiguracionPage() {
       case 'json':
         return (
           <Textarea
-            value={config.valor}
+            value={config.valor || ''}
             onChange={(e) => updateConfiguracion(config.id, e.target.value)}
             className="w-full min-h-[100px] font-mono text-sm"
             placeholder='{"ejemplo": "valor"}'
@@ -309,13 +182,32 @@ export default function ConfiguracionPage() {
       default: // 'string'
         return (
           <Input
-            type={config.clave.includes('email') ? 'email' : 'text'}
-            value={config.valor}
+            type={config.clave?.includes('email') ? 'email' : 'text'}
+            value={config.valor || ''}
             onChange={(e) => updateConfiguracion(config.id, e.target.value)}
             className="w-full"
           />
         )
     }
+  }
+
+  if (isLoading) {
+    return (
+      <ProtectedRoute adminOnly>
+        <div className="flex h-screen">
+          <StaticSidebar />
+          <div className="flex flex-1 flex-col">
+            <Header />
+            <main className="flex-1 overflow-y-auto p-6 flex items-center justify-center">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                <p className="text-muted-foreground">Cargando configuraciones...</p>
+              </div>
+            </main>
+          </div>
+        </div>
+      </ProtectedRoute>
+    )
   }
 
   return (
@@ -343,12 +235,12 @@ export default function ConfiguracionPage() {
                 </Button>
                 <Button
                   onClick={guardarConfiguraciones}
-                  disabled={isLoading}
+                  disabled={isSaving}
                   className="hover-lift bg-gradient-success"
                 >
-                  {isLoading ? (
+                  {isSaving ? (
                     <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Guardando...
                     </>
                   ) : (
@@ -436,10 +328,14 @@ export default function ConfiguracionPage() {
                             <span className="flex items-center space-x-1">
                               <Clock className="h-3 w-3" />
                               <span>
-                                Actualizado: {new Date(config.fecha_actualizacion).toLocaleString()}
+                                Actualizado: {config.fechaActualizacion 
+                                  ? new Date(config.fechaActualizacion).toLocaleString('es-GT')
+                                  : 'N/A'}
                               </span>
                             </span>
-                            <span>Por: Usuario ID {config.actualizado_por}</span>
+                            {config.actualizadoPor && (
+                              <span>Por: Usuario ID {config.actualizadoPor}</span>
+                            )}
                           </div>
                         </div>
                         

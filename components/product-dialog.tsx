@@ -93,21 +93,6 @@ export function ProductDialog({ product, onSuccess }: ProductDialogProps) {
     setSaving(true)
 
     const formData = new FormData(e.currentTarget as HTMLFormElement)
-    const expirationDate = formData.get('expirationDate') as string
-    
-    // Validar fecha de caducidad si se proporcionó (con toast en lugar de confirm)
-    if (expirationDate) {
-      const expDate = new Date(expirationDate)
-      const today = new Date()
-      const diffDays = Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-      
-      if (diffDays < 30) {
-        toast.warning('Producto próximo a vencer', {
-          description: `⚠️ Este producto caducará en ${diffDays} días (${expDate.toLocaleDateString()}).`,
-          duration: 5000
-        })
-      }
-    }
     
     try {
       const categoriaId = Number(formData.get('category'))
@@ -122,7 +107,6 @@ export function ProductDialog({ product, onSuccess }: ProductDialogProps) {
         Costo: 0, // Por ahora en 0, luego puedes agregarlo al formulario
         StockActual: Number(formData.get('stock')),
         StockMinimo: Number(formData.get('minStock')),
-        FechaVencimiento: expirationDate || null,
         Descripcion: (formData.get('description') as string) || null,
         Estado: 'activo'
       }
@@ -269,35 +253,28 @@ export function ProductDialog({ product, onSuccess }: ProductDialogProps) {
                 <Input id="price" name="price" type="number" placeholder="0.00" step="0.01" defaultValue={product?.precio ?? ''} required />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="expirationDate" className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4" />
-                  <span>Fecha de Caducidad</span>
-                </Label>
-                <Input 
-                  id="expirationDate"
-                  name="expirationDate" 
-                  type="date" 
-                  min={new Date().toISOString().split('T')[0]}
-                  className="h-10"
-                  defaultValue={product?.fecha_vencimiento ? product.fecha_vencimiento.substring(0,10) : ''}
-                />
-                <p className="text-xs text-muted-foreground flex items-center space-x-1">
-                  <AlertTriangle className="h-3 w-3 text-orange-500" />
-                  <span>Opcional - Solo para productos perecederos</span>
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
                 <Label htmlFor="stock">Stock Actual</Label>
                 <Input id="stock" name="stock" type="number" placeholder="0" defaultValue={product?.stock_actual ?? ''} required />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="minStock">Stock Mínimo</Label>
                 <Input id="minStock" name="minStock" type="number" placeholder="0" defaultValue={product?.stock_minimo ?? ''} required />
                 <p className="text-xs text-muted-foreground">
                   Se alertará cuando el stock sea menor a este valor
                 </p>
+              </div>
+              <div className="grid gap-2">
+                <Label className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Fecha de Vencimiento</span>
+                </Label>
+                <div className="flex items-center h-10 px-3 rounded-md border border-dashed bg-muted/50">
+                  <p className="text-xs text-muted-foreground">
+                    Se gestiona por lote en las entradas
+                  </p>
+                </div>
               </div>
             </div>
             <div className="grid gap-2">

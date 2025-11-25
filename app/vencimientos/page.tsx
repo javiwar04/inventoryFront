@@ -4,12 +4,121 @@ import { Header } from "@/components/header"
 import { StaticSidebar } from "@/components/static-sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ExpirationTable } from "@/components/expiration-table"
-import { AlertTriangle, Calendar, Package, XCircle } from "lucide-react"
+import { AlertTriangle, Calendar, Package, XCircle, Download } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { usePermissions } from "@/hooks/use-permissions"
+import { useEffect, useState } from "react"
+import { productosService, entradasService } from "@/lib/api"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
 
 export default function ExpirationsPage() {
   const { canView } = usePermissions()
+  const [stats, setStats] = useState({
+    total: 0,
+    vencen30: 0,
+    vencen90: 0,
+    vencidos: 0
+  })
+
+  useEffect(() => {
+    loadStats()
+  }, [])
+
+  const loadStats = async () => {
+    try {
+      const entradas = await entradasService.getAll(1, 10000)
+
+      let total = 0
+      let vencen30 = 0
+      let vencen90 = 0
+      let vencidos = 0
+      const hoy = new Date()
+
+      // Contar lotes de entradas con vencimiento
+      entradas.forEach(e => {
+        if (e.detalleEntrada) {
+          e.detalleEntrada.forEach(d => {
+            if (d.fechaVencimiento && d.lote) {
+              total++
+              const fechaVenc = new Date(d.fechaVencimiento)
+              const dias = Math.ceil((fechaVenc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+              
+              if (dias < 0) vencidos++
+              else if (dias <= 30) vencen30++
+              else if (dias <= 90) vencen90++
+            }
+          })
+        }
+      })
+
+      setStats({ total, vencen30, vencen90, vencidos })
+    } catch (err) {
+      console.error('Error cargando estadísticas:', err)
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      const entradas = await entradasService.getAll(1, 10000)
+      
+      const vencimientos: any[] = []
+      const hoy = new Date()
+
+      entradas.forEach(entrada => {
+        if (entrada.detalleEntrada) {
+          entrada.detalleEntrada.forEach(detalle => {
+            if (detalle.fechaVencimiento && detalle.lote) {
+              const fechaVenc = new Date(detalle.fechaVencimiento)
+              const dias = Math.ceil((fechaVenc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+              
+              let estado = 'Normal'
+              if (dias < 0) estado = 'Vencido'
+              else if (dias <= 30) estado = 'Crítico'
+              else if (dias <= 90) estado = 'Advertencia'
+              
+              vencimientos.push({
+                sku: detalle.producto?.sku || '',
+                nombre: detalle.producto?.nombre || 'Desconocido',
+                lote: detalle.lote,
+                cantidad: detalle.cantidad,
+                fechaVenc: detalle.fechaVencimiento,
+                dias,
+                estado
+              })
+            }
+          })
+        }
+      })
+
+      const headers = ['SKU', 'Producto', 'Lote', 'Cantidad', 'Fecha Vencimiento', 'Días Restantes', 'Estado']
+      const rows = vencimientos.map(v => [
+        v.sku,
+        v.nombre,
+        v.lote,
+        v.cantidad.toString(),
+        new Date(v.fechaVenc).toLocaleDateString('es-GT'),
+        v.dias.toString(),
+        v.estado
+      ])
+      
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n')
+      
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `vencimientos_${new Date().toISOString().split('T')[0]}.csv`
+      link.click()
+      
+      toast.success(`${vencimientos.length} productos exportados exitosamente`)
+    } catch (error) {
+      toast.error('Error al exportar vencimientos')
+      console.error('Error al exportar:', error)
+    }
+  }
 
   if (!canView("productos")) {
     return (
@@ -51,7 +160,7 @@ export default function ExpirationsPage() {
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">106</div>
+                  <div className="text-2xl font-bold">{stats.total}</div>
                   <p className="text-xs text-muted-foreground mt-1">Con fecha de vencimiento</p>
                 </CardContent>
               </Card>
@@ -61,7 +170,7 @@ export default function ExpirationsPage() {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-destructive">8</div>
+                  <div className="text-2xl font-bold text-destructive">{stats.vencen30}</div>
                   <p className="text-xs text-muted-foreground mt-1">Requieren atención urgente</p>
                 </CardContent>
               </Card>
@@ -71,7 +180,7 @@ export default function ExpirationsPage() {
                   <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-secondary">23</div>
+                  <div className="text-2xl font-bold text-secondary">{stats.vencen90}</div>
                   <p className="text-xs text-muted-foreground mt-1">Planificar rotación</p>
                 </CardContent>
               </Card>
@@ -81,15 +190,19 @@ export default function ExpirationsPage() {
                   <XCircle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">0</div>
-                  <p className="text-xs text-accent mt-1">Excelente control</p>
+                  <div className="text-2xl font-bold">{stats.vencidos}</div>
+                  <p className="text-xs text-accent mt-1">{stats.vencidos === 0 ? 'Excelente control' : 'Requiere acción'}</p>
                 </CardContent>
               </Card>
             </div>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Productos por Vencer</CardTitle>
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar
+                </Button>
               </CardHeader>
               <CardContent>
                 <ExpirationTable />

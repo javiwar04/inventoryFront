@@ -4,11 +4,15 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ArrowDownToLine, ArrowUpFromLine, Loader2 } from "lucide-react"
-import { statsService } from "@/lib/api"
+import { statsService, productosService, Producto } from "@/lib/api"
+import { ProductDetailsDialog } from "@/components/product-details-dialog"
 
 export function RecentMovements() {
   const [movements, setMovements] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
+  const [productDialogOpen, setProductDialogOpen] = useState(false)
+  const [loadingProductId, setLoadingProductId] = useState<number | null>(null)
 
   useEffect(() => {
     loadData()
@@ -50,7 +54,8 @@ export function RecentMovements() {
   }
 
   return (
-    <Card>
+    <>
+      <Card>
       <CardHeader>
         <CardTitle>Movimientos Recientes</CardTitle>
       </CardHeader>
@@ -62,13 +67,12 @@ export function RecentMovements() {
         ) : (
           <div className="space-y-4">
             {movements.map((movement) => (
-              <div key={movement.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`rounded-lg p-2 ${
+              <div key={movement.id} className="flex items-start justify-between border-b pb-4 last:border-0 last:pb-0">
+                <div className="flex items-start gap-3 w-full">
+                  <div className={`rounded-lg p-2 mt-1 ${
                       movement.tipo === "entrada" ? "bg-accent/10 text-accent" : "bg-destructive/10 text-destructive"
                     }`}
-                  >
+                    >
                     {movement.tipo === "entrada" ? (
                       <ArrowDownToLine className="h-4 w-4" />
                     ) : (
@@ -76,10 +80,46 @@ export function RecentMovements() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{movement.numero}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {movement.descripcion} • {formatDate(movement.fecha)}
-                    </p>
+                    <p className="font-medium text-sm truncate">{movement.numero} • {movement.descripcion}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(movement.fecha)}</p>
+
+                    {/* Productos list: show up to 3 items with cantidad */}
+                    {movement.productos && movement.productos.length > 0 && (
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        {movement.productos.slice(0, 3).map((p: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <button
+                              onClick={async () => {
+                                const id = Number(p.productoId ?? p.id)
+                                try {
+                                  setLoadingProductId(id)
+                                  const prod = await productosService.getById(id)
+                                  setSelectedProduct(prod)
+                                  setProductDialogOpen(true)
+                                } catch (err) {
+                                  console.error('Error cargando producto:', err)
+                                } finally {
+                                  setLoadingProductId(null)
+                                }
+                              }}
+                              className="font-medium text-xs hover:underline flex items-center gap-2"
+                              disabled={loadingProductId === (p.productoId ?? p.id)}
+                            >
+                              {loadingProductId === (p.productoId ?? p.id) ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                p.nombre
+                              )}
+                            </button>
+                            <span className="text-xs">•</span>
+                            <span className="text-xs">{p.cantidad} unidades</span>
+                          </div>
+                        ))}
+                        {movement.productos.length > 3 && (
+                          <div className="text-xs text-muted-foreground">+{movement.productos.length - 3} más</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right ml-2">
@@ -89,6 +129,10 @@ export function RecentMovements() {
                   >
                     {movement.tipo === "entrada" ? "Entrada" : "Salida"}
                   </Badge>
+                  {/* Mostrar total de unidades al lado del badge */}
+                  {movement.productos && movement.productos.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">{movement.productos.reduce((s: number, p: any) => s + (p.cantidad || 0), 0)} uds</p>
+                  )}
                   {movement.total && (
                     <p className="text-xs text-muted-foreground mt-1">
                       Q{movement.total.toFixed(2)}
@@ -100,6 +144,16 @@ export function RecentMovements() {
           </div>
         )}
       </CardContent>
-    </Card>
+      </Card>
+      {/* Diálogo de detalles de producto */}
+      <ProductDetailsDialog
+        product={selectedProduct}
+        open={productDialogOpen}
+        onOpenChange={(open) => {
+          setProductDialogOpen(open)
+          if (!open) setSelectedProduct(null)
+        }}
+      />
+    </>
   )
 }
