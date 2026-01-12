@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { usuariosService, type Usuario } from "@/lib/api"
+import { usuariosService, proveedoresService, type Usuario, type Proveedor } from "@/lib/api"
 import * as bcrypt from "bcryptjs"
 
 interface UserDialogProps {
@@ -40,6 +40,7 @@ export function UserDialog({
 }: UserDialogProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [proveedores, setProveedores] = useState<Proveedor[]>([])
   
   const [formData, setFormData] = useState({
     nombre: "",
@@ -49,8 +50,23 @@ export function UserDialog({
     confirmPassword: "",
     rol: "empleado",
     estado: "activo",
-    avatar: ""
+    avatar: "",
+    sedeId: "0" // "0" o string vacía para indicar "sin sede"
   })
+
+  useEffect(() => {
+    loadProveedores()
+  }, [])
+
+  const loadProveedores = async () => {
+    try {
+      const data = await proveedoresService.getAll()
+      // Filtrar por activo ignorando mayúsculas/minúsculas
+      setProveedores(data.filter(p => p.estado?.toLowerCase() === 'activo'))
+    } catch (e) {
+      console.error("Error cargando proveedores/sedes", e)
+    }
+  }
 
   useEffect(() => {
     if (user) {
@@ -63,7 +79,8 @@ export function UserDialog({
         confirmPassword: "",
         rol: user.rol || "empleado",
         estado: user.estado || "activo",
-        avatar: user.avatar || ""
+        avatar: user.avatar || "",
+        sedeId: user.sedeId ? user.sedeId.toString() : "0"
       })
     } else {
       // Modo creación - resetear formulario
@@ -75,7 +92,8 @@ export function UserDialog({
         confirmPassword: "",
         rol: "empleado",
         estado: "activo",
-        avatar: ""
+        avatar: "",
+        sedeId: "0"
       })
     }
   }, [user, open])
@@ -163,7 +181,8 @@ export function UserDialog({
           email: formData.email.trim(),
           rol: formData.rol,
           estado: formData.estado,
-          avatar: formData.avatar.trim() || null
+          avatar: formData.avatar.trim() || null,
+          sedeId: formData.rol === 'empleado' && formData.sedeId !== "0" ? Number(formData.sedeId) : null
         }
 
         // Si hay nueva contraseña, hashearla
@@ -171,6 +190,9 @@ export function UserDialog({
           const salt = await bcrypt.genSalt(10)
           const passwordHash = await bcrypt.hash(formData.password, salt)
           updateData.passwordHash = passwordHash
+        } else {
+          // Si no hay nueva contraseña, mantener la existente
+          updateData.passwordHash = user.passwordHash
         }
 
         await usuariosService.update(user.id, updateData)
@@ -193,6 +215,7 @@ export function UserDialog({
           rol: formData.rol,
           estado: formData.estado,
           avatar: formData.avatar.trim() || null,
+          sedeId: formData.rol === 'empleado' && formData.sedeId !== "0" ? Number(formData.sedeId) : null,
           creadoPor: currentUserId && currentUserId > 0 ? currentUserId : undefined // undefined para omitir el campo
         }
 
@@ -355,6 +378,36 @@ export function UserDialog({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Sede / Sucursal (Solo para Empleados) */}
+            {formData.rol === 'empleado' && (
+              <div className="grid gap-2">
+                <Label htmlFor="sede">
+                  Sede / Sucursal Asignada (Hotel)
+                </Label>
+                <Select
+                  value={formData.sedeId}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, sedeId: value })
+                  }
+                >
+                  <SelectTrigger id="sede">
+                    <SelectValue placeholder="Seleccionar sede" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">-- Sin sede asignada --</SelectItem>
+                    {proveedores.map((prov) => (
+                      <SelectItem key={prov.id} value={prov.id.toString()}>
+                        {prov.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  El usuario solo podrá ver información relacionada a esta sede.
+                </p>
+              </div>
+            )}
 
             {/* Estado */}
             <div className="grid gap-2">

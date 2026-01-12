@@ -181,7 +181,7 @@ export function ProductDialog({ product, onSuccess }: ProductDialogProps) {
               <div className="grid gap-2">
                 <Label htmlFor="supplier" className="flex items-center space-x-2">
                   <Package className="h-4 w-4" />
-                  <span>Proveedor</span>
+                  <span>Hotel / Proveedor</span>
                   <Badge variant="outline" className="text-xs">
                     {proveedores.length} disponibles
                   </Badge>
@@ -189,7 +189,7 @@ export function ProductDialog({ product, onSuccess }: ProductDialogProps) {
                 <Select disabled={loading} name="supplier" required defaultValue={product?.proveedor_id?.toString()}
                 >
                   <SelectTrigger id="supplier" className="h-12">
-                    <SelectValue placeholder={loading ? "Cargando proveedores..." : "Seleccionar proveedor"} />
+                    <SelectValue placeholder={loading ? "Cargando hoteles..." : "Seleccionar hotel"} />
                   </SelectTrigger>
                   <SelectContent>
                     {proveedores.map((proveedor) => (
@@ -204,7 +204,7 @@ export function ProductDialog({ product, onSuccess }: ProductDialogProps) {
                     ))}
                     {proveedores.length === 0 && !loading && (
                       <SelectItem value="no-providers" disabled>
-                        <span className="text-muted-foreground">No hay proveedores disponibles</span>
+                        <span className="text-muted-foreground">No hay hoteles disponibles</span>
                       </SelectItem>
                     )}
                   </SelectContent>

@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Scissors, Loader2 } from "lucide-react"
+import { Package, Loader2 } from "lucide-react"
+import Image from "next/image"
 import { toast } from "sonner"
 
 export default function LoginPage() {
@@ -48,12 +49,19 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <Scissors className="h-8 w-8 text-primary" />
+          <div className="mx-auto flex justify-center mb-2">
+            <Image 
+              src="/logoselvamo.png" 
+              alt="SELVAMO Logo" 
+              width={140} 
+              height={140} 
+              className="object-contain"
+              priority
+            />
           </div>
           <div>
-            <CardTitle className="text-2xl">Sistema de Inventario</CardTitle>
-            <CardDescription className="text-pretty">Barbería - Gestión de Stock</CardDescription>
+            <CardTitle className="text-2xl">SELVAMO</CardTitle>
+            <CardDescription className="text-pretty">Sistema de Gestión de Stock</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -101,7 +109,16 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Se eliminó el panel de 'Estado de conexión' ahora que la integración está completa */}
+          {/* Logo WARFORGE */}
+          <div className="mt-6 pt-6 border-t border-border/40 flex justify-center">
+            <a href="https://www.warforgegt.com" target="_blank" rel="noopener noreferrer">
+              <img 
+                src="/warforge-logo.png" 
+                alt="WARFORGE - Forging the Future" 
+                className="h-16 w-auto opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+              />
+            </a>
+          </div>
         </CardContent>
       </Card>
     </div>

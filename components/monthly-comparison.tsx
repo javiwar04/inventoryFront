@@ -50,15 +50,14 @@ export function MonthlyComparison({ dateRange }: { dateRange?: DateRange }) {
                   borderRadius: "8px",
                 }}
                 formatter={(value: number, name: string) => {
-                  if (name === 'entradas') {
-                    return [`Q${value.toLocaleString('es-GT', { maximumFractionDigits: 0 })}`, 'Inversión']
-                  }
-                  return [value, name === 'salidas' ? 'Salidas' : name]
+                  if (name === 'entradas') return [value, 'Entradas (Unidades)']
+                  if (name === 'salidas') return [value, 'Ventas (Unidades)']
+                  return [value, name]
                 }}
               />
               <Legend />
-              <Bar dataKey="entradas" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} name="Inversión (Q)" />
-              <Bar dataKey="salidas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Salidas" />
+              <Bar dataKey="entradas" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} name="Entradas" />
+              <Bar dataKey="salidas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Ventas" />
             </BarChart>
           </ResponsiveContainer>
         )}

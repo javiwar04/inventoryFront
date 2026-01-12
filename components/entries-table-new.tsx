@@ -10,8 +10,10 @@ import { toast } from "sonner"
 import { entradasService, type Entrada, registrarAuditoria } from "@/lib/api"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { EntryDetailDialog } from "@/components/entry-detail-dialog"
+import { useAuth } from "@/contexts/auth-context"
 
 export function EntriesTable() {
+  const { user } = useAuth()
   const [items, setItems] = useState<Entrada[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<number | null>(null)
@@ -29,8 +31,15 @@ export function EntriesTable() {
     try {
       setLoading(true)
       const data = await entradasService.getAll()
-      console.log('=== ENTRADAS CARGADAS ===', data) // Debug
-      setItems(data)
+      
+      // Si es empleado, filtrar solo sus entradas (Lógica de Hotel/Sucursal por Usuario)
+      let filteredData = data
+      if (user?.rol === 'empleado' && user.id) {
+        filteredData = data.filter(item => item.creadoPor === user.id)
+      }
+
+      console.log('=== ENTRADAS CARGADAS ===', filteredData) // Debug
+      setItems(filteredData)
     } catch (err: any) {
       toast.error('Error al cargar entradas', { description: err?.message })
     } finally {

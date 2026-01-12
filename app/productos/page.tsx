@@ -24,6 +24,7 @@ export default function ProductsPage() {
   const [categoriaFilter, setCategoriaFilter] = useState<string>("all")
   const [proveedorFilter, setProveedorFilter] = useState<string>("all")
   const [stockFilter, setStockFilter] = useState<string>("all")
+  const [hotelFilter, setHotelFilter] = useState<string>("all")
   const [showFilters, setShowFilters] = useState(false)
   const { canView, canCreate } = usePermissions()
 
@@ -158,7 +159,7 @@ export default function ProductsPage() {
             {showFilters && (
               <Card className="mb-6">
                 <CardContent className="pt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <label className="text-sm font-medium mb-2 block">Categoría</label>
                       <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
@@ -188,6 +189,20 @@ export default function ProductsPage() {
                       </Select>
                     </div>
                     <div>
+                      <label className="text-sm font-medium mb-2 block">Sede / Hotel</label>
+                      <Select value={hotelFilter} onValueChange={setHotelFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todas las sedes" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas las sedes</SelectItem>
+                          {proveedores.map(prov => (
+                            <SelectItem key={prov.id} value={prov.id.toString()}>{prov.nombre}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
                       <label className="text-sm font-medium mb-2 block">Estado de Stock</label>
                       <Select value={stockFilter} onValueChange={setStockFilter}>
                         <SelectTrigger>
@@ -202,7 +217,7 @@ export default function ProductsPage() {
                       </Select>
                     </div>
                   </div>
-                  {(categoriaFilter !== "all" || proveedorFilter !== "all" || stockFilter !== "all") && (
+                  {(categoriaFilter !== "all" || proveedorFilter !== "all" || stockFilter !== "all" || hotelFilter !== "all") && (
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -211,6 +226,7 @@ export default function ProductsPage() {
                         setCategoriaFilter("all")
                         setProveedorFilter("all")
                         setStockFilter("all")
+                        setHotelFilter("all")
                       }}
                     >
                       Limpiar filtros
@@ -220,7 +236,13 @@ export default function ProductsPage() {
               </Card>
             )}
 
-            <ProductsTable search={term} />
+            <ProductsTable 
+              search={term} 
+              categoryFilter={categoriaFilter}
+              supplierFilter={proveedorFilter}
+              stockFilter={stockFilter}
+              hotelFilter={hotelFilter}
+            />
           </main>
         </div>
       </div>

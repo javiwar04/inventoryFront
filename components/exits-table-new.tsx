@@ -10,8 +10,10 @@ import { toast } from "sonner"
 import { salidasService, type Salida, registrarAuditoria } from "@/lib/api"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { ExitDetailDialog } from "@/components/exit-detail-dialog"
+import { useAuth } from "@/contexts/auth-context"
 
 export function ExitsTable() {
+  const { user } = useAuth()
   const [items, setItems] = useState<Salida[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<number | null>(null)
@@ -29,8 +31,15 @@ export function ExitsTable() {
     try {
       setLoading(true)
       const data = await salidasService.getAll()
-      console.log('=== SALIDAS CARGADAS ===', data) // Debug
-      setItems(data)
+
+      // Si es empleado, filtrar solo sus salidas (Lógica de Hotel/Sucursal por Usuario)
+      let filteredData = data
+      if (user?.rol === 'empleado' && user.id) {
+        filteredData = data.filter(item => item.creadoPor === user.id)
+      }
+
+      console.log('=== SALIDAS CARGADAS ===', filteredData) // Debug
+      setItems(filteredData)
     } catch (err: any) {
       toast.error('Error al cargar salidas', { description: err?.message })
     } finally {

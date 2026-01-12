@@ -18,17 +18,38 @@ import { ProductDialog } from "@/components/product-dialog"
 import { ProductDetailsDialog } from "@/components/product-details-dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
-import { productosService, type Producto, registrarAuditoria } from "@/lib/api"
+import { productosService, type Producto, registrarAuditoria, inventarioService } from "@/lib/api"
 
-interface ProductsTableProps { search?: string }
+interface ProductsTableProps { 
+  search?: string 
+  categoryFilter?: string
+  supplierFilter?: string
+  stockFilter?: string
+  hotelFilter?: string
+}
 
-export function ProductsTable({ search }: ProductsTableProps) {
+export function ProductsTable({ search, categoryFilter, supplierFilter, stockFilter, hotelFilter }: ProductsTableProps) {
   const { canEdit, canDelete } = usePermissions()
   const [selected, setSelected] = useState<Producto | null>(null)
   const [viewDetails, setViewDetails] = useState<Producto | null>(null)
   const [items, setItems] = useState<Producto[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [hotelStocks, setHotelStocks] = useState<Record<number, number>>({})
+
+  useEffect(() => {
+    if (hotelFilter && hotelFilter !== "all") {
+      inventarioService.getByHotel(parseInt(hotelFilter))
+        .then(data => {
+          const map: Record<number, number> = {}
+          data.forEach(x => map[x.productoId] = x.stock)
+          setHotelStocks(map)
+        })
+        .catch(console.error)
+    } else {
+      setHotelStocks({})
+    }
+  }, [hotelFilter])
 
   useEffect(() => {
     const load = async () => {
@@ -61,9 +82,31 @@ export function ProductsTable({ search }: ProductsTableProps) {
   }, [])
 
   const term = (search ?? '').toLowerCase()
-  const filteredProducts = items.filter(
-    (p) => p.nombre.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term)
-  )
+  const filteredProducts = items.filter((p) => {
+    const matchesSearch = p.nombre.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term)
+    const matchesCategory = !categoryFilter || categoryFilter === "all" || p.categoria_id === parseInt(categoryFilter)
+    const matchesSupplier = !supplierFilter || supplierFilter === "all" || p.proveedor_id === parseInt(supplierFilter)
+    
+    // Determine the stock to check based on filters
+    const currentStock = (hotelFilter && hotelFilter !== "all") ? (hotelStocks[p.id] || 0) : p.stock_actual
+    
+    // Filter out items with 0 stock if a specific hotel is selected (Optional interpretation of "lo que hay")
+    // Or just treat stockFilter logic:
+    
+    let matchesStock = true
+    if (stockFilter === "bajo") {
+      matchesStock = currentStock < p.stock_minimo
+    } else if (stockFilter === "normal") {
+      matchesStock = currentStock >= p.stock_minimo
+    } else if (stockFilter === "alto") {
+      matchesStock = currentStock >= p.stock_minimo
+    } else if (hotelFilter && hotelFilter !== "all") {
+       // If filtering by hotel and NO stock filter is set, maybe only show existing items?
+       matchesStock = currentStock > 0
+    }
+
+    return matchesSearch && matchesCategory && matchesSupplier && matchesStock
+  })
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1)
@@ -170,15 +213,16 @@ export function ProductsTable({ search }: ProductsTableProps) {
             </TableRow>
           )}
           {!loading && visibleProducts.map((product) => {
-            const status = getStockStatus(product.stock_actual, product.stock_minimo)
+            const currentStock = (hotelFilter && hotelFilter !== "all") ? (hotelStocks[product.id] || 0) : product.stock_actual
+            const status = getStockStatus(currentStock, product.stock_minimo)
             return (
               <TableRow key={product.id}>
                 <TableCell className="font-mono text-sm">{product.sku}</TableCell>
                 <TableCell className="font-medium">{product.nombre}</TableCell>
                 <TableCell>{product.categoria?.nombre || '-'}</TableCell>
                 <TableCell className="text-right">
-                  <span className={product.stock_actual < product.stock_minimo ? "text-destructive font-semibold" : ""}>
-                    {product.stock_actual}
+                  <span className={currentStock < product.stock_minimo ? "text-destructive font-semibold" : ""}>
+                    {currentStock}
                   </span>
                   <span className="text-muted-foreground text-xs ml-1">/ {product.stock_minimo}</span>
                 </TableCell>

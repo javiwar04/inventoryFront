@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
@@ -56,10 +57,10 @@ const staticNavSections = [
         badge: "nuevo",
       },
       {
-        title: "Salidas",
+        title: "Ventas",
         href: "/salidas",
         icon: ArrowUpFromLine,
-        description: "Stock saliente",
+        description: "Registro de ventas",
       },
       {
         title: "Vencimientos",
@@ -80,10 +81,10 @@ const staticNavSections = [
         description: "Organizar productos",
       },
       {
-        title: "Proveedores",
+        title: "Hoteles",
         href: "/proveedores",
         icon: Building2,
-        description: "Gestión de proveedores",
+        description: "Gestión de hoteles",
       },
     ],
   },
@@ -151,12 +152,12 @@ export function StaticSidebar() {
         {showExpanded ? (
           <div className="flex items-center justify-between w-full px-3">
             <div className="flex items-center space-x-3 overflow-hidden">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary flex-shrink-0">
-                <BarChart3 className="h-4 w-4 text-white" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 flex-shrink-0">
+                <Image src="/logoselvamo.png" alt="Logo" width={24} height={24} className="object-contain" />
               </div>
               <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-200">
-                <span className="text-sm font-semibold leading-none whitespace-nowrap">Inventario Pro</span>
-                <span className="text-xs text-muted-foreground leading-none whitespace-nowrap">Barbería Moderna</span>
+                <span className="text-sm font-semibold leading-none whitespace-nowrap">SELVAMO</span>
+                <span className="text-xs text-muted-foreground leading-none whitespace-nowrap">Sistema Inventario</span>
               </div>
             </div>
             <Badge variant="outline" className="text-xs px-2 py-0.5 animate-in fade-in duration-200">
@@ -165,8 +166,8 @@ export function StaticSidebar() {
             </Badge>
           </div>
         ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary">
-            <BarChart3 className="h-4 w-4 text-white" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
+            <Image src="/logoselvamo.png" alt="Logo" width={24} height={24} className="object-contain" />
           </div>
         )}
       </div>

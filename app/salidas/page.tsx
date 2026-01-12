@@ -13,8 +13,10 @@ import { ProtectedRoute } from "@/components/protected-route"
 import { usePermissions } from "@/hooks/use-permissions"
 import { salidasService } from "@/lib/api"
 import { toast } from "sonner"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function ExitsPage() {
+  const { user, isLoading: authLoading } = useAuth()
   const { canView, canCreate } = usePermissions()
   const [stats, setStats] = useState({
     salidasMes: 0,
@@ -25,25 +27,33 @@ export default function ExitsPage() {
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
-    loadStats()
+    if (!authLoading) {
+      loadStats()
+    }
     
     const handleCreated = () => {
       setRefreshKey(prev => prev + 1)
-      loadStats()
+      if (!authLoading) loadStats()
     }
     window.addEventListener('salidas:created', handleCreated)
     return () => window.removeEventListener('salidas:created', handleCreated)
-  }, [])
+  }, [authLoading, user])
 
   const loadStats = async () => {
     try {
       setLoading(true)
       const salidas = await salidasService.getAll(1, 1000)
 
+      // FILTRAR SI ES EMPLEADO (HOTEL)
+      let salidasFiltradas = salidas
+      if (user?.rol === 'empleado' && user.id) {
+        salidasFiltradas = salidas.filter(s => s.creadoPor === user.id)
+      }
+
       const now = new Date()
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       
-      const salidasMes = salidas.filter(s => 
+      const salidasMes = salidasFiltradas.filter(s => 
         new Date(s.fechaSalida) >= firstDayOfMonth
       )
 
@@ -54,7 +64,7 @@ export default function ExitsPage() {
       setStats({
         salidasMes: salidasMes.length,
         productosDespachados,
-        productosCount: salidas.reduce((sum, s) => 
+        productosCount: salidasFiltradas.reduce((sum, s) => 
           sum + (s.detalleSalida?.length || (s as any).DetalleSalida?.length || 0), 0
         )
       })
@@ -87,12 +97,12 @@ export default function ExitsPage() {
       const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
       const link = document.createElement('a')
       link.href = URL.createObjectURL(blob)
-      link.download = `salidas_${new Date().toISOString().split('T')[0]}.csv`
+      link.download = `ventas_${new Date().toISOString().split('T')[0]}.csv`
       link.click()
       
-      toast.success(`${salidas.length} salidas exportadas exitosamente`)
+      toast.success(`${salidas.length} ventas exportadas exitosamente`)
     } catch (error) {
-      toast.error('Error al exportar salidas')
+      toast.error('Error al exportar ventas')
       console.error('Error al exportar:', error)
     }
   }
@@ -124,9 +134,9 @@ export default function ExitsPage() {
           <main className="flex-1 overflow-y-auto p-6">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-balance">Salidas de Inventario</h1>
+                <h1 className="text-3xl font-bold text-balance">Gestión de Ventas</h1>
                 <p className="mt-2 text-muted-foreground">
-                  Registra y gestiona todas las salidas de productos del inventario
+                  Registra y gestiona las ventas de productos desde los hoteles.
                 </p>
               </div>
               {canCreate("salidas") && <ExitDialogNew />}

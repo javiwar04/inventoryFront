@@ -56,7 +56,7 @@ api.interceptors.response.use(
     const serverText = typeof serverData === 'string' ? serverData : JSON.stringify(serverData || '')
 
     // Heurística: detectar violaciones de UNIQUE KEY en SQL Server
-    if (serverText && (serverText.includes('Violation of UNIQUE KEY constraint') || serverText.includes('Cannot insert duplicate key') || serverText.includes('SqlException')) ) {
+    if (serverText && (serverText.includes('Violation of UNIQUE KEY constraint') || serverText.includes('Cannot insert duplicate key'))) {
       // Intentar extraer valor duplicado
       const match = serverText.match(/\(([^)]+)\)/)
       const duplicatedValue = match ? match[1] : null
@@ -65,16 +65,21 @@ api.interceptors.response.use(
       let friendly = 'Ya existe un registro con un valor duplicado.'
       const lower = serverText.toLowerCase()
       if (lower.includes('telefono') || lower.includes('teléfono') || /\b\d{7,}\b/.test(duplicatedValue || '')) {
-        friendly = 'Ya existe un proveedor con ese número de teléfono.'
+        friendly = 'Ya existe un registro con ese número de teléfono.'
       } else if (lower.includes('nit')) {
-        friendly = 'Ya existe un proveedor con ese NIT.'
+        friendly = 'Ya existe un registro con ese NIT.'
       } else if (duplicatedValue) {
-        friendly = `Ya existe un proveedor con el valor "${duplicatedValue}".`
+        friendly = `Ya existe un registro con el valor "${duplicatedValue}".`
       }
 
       console.error('API Error (friendly):', friendly)
-      // Rechazar con un Error más amigable para que los catch locales lo muestren
       return Promise.reject(new Error(friendly))
+    }
+    
+    // Detectar Foreign Key violations
+    if (serverText && serverText.includes('conflicted with the FOREIGN KEY constraint')) {
+       console.error('API Error (FK):', serverText)
+       return Promise.reject(new Error('Error de integridad: Un registro relacionado no existe (ej. Producto o Usuario inválido).'))
     }
 
     // Manejar otros errores HTTP: loguear status y body completo para depuración

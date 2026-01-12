@@ -1,7 +1,7 @@
 "use client"
 
 import { useAuth } from "@/contexts/auth-context"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 
 export function usePermissions() {
   const { user } = useAuth()
@@ -37,32 +37,32 @@ export function usePermissions() {
     }
   }, [user])
 
-  const hasPermission = (permission: string): boolean => {
+  const hasPermission = useCallback((permission: string): boolean => {
     if (!user) return false
     if (user.rol === "admin") return true
     if (permisos.includes("*")) return true
     return permisos.includes(permission)
-  }
+  }, [user, permisos])
 
-  const isAdmin = (): boolean => {
+  const isAdmin = useCallback((): boolean => {
     return user?.rol === "admin"
-  }
+  }, [user])
 
-  const canCreate = (module: string): boolean => {
+  const canCreate = useCallback((module: string): boolean => {
     return hasPermission(`${module}.crear`)
-  }
+  }, [hasPermission])
 
-  const canEdit = (module: string): boolean => {
+  const canEdit = useCallback((module: string): boolean => {
     return hasPermission(`${module}.editar`)
-  }
+  }, [hasPermission])
 
-  const canDelete = (module: string): boolean => {
+  const canDelete = useCallback((module: string): boolean => {
     return hasPermission(`${module}.eliminar`)
-  }
+  }, [hasPermission])
 
-  const canView = (module: string): boolean => {
+  const canView = useCallback((module: string): boolean => {
     return hasPermission(`${module}.ver`)
-  }
+  }, [hasPermission])
 
   return {
     hasPermission,

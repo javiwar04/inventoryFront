@@ -221,7 +221,7 @@ export default function ConfiguracionPage() {
               <div>
                 <h1 className="text-3xl font-bold text-balance">Configuración del Sistema</h1>
                 <p className="mt-2 text-muted-foreground">
-                  Gestiona las configuraciones globales de la barbería y el sistema de inventario
+                  Gestiona las configuraciones globales de la empresa y el sistema de inventario
                 </p>
               </div>
               <div className="flex items-center space-x-2">

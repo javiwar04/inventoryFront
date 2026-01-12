@@ -1,10 +1,13 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Package, DollarSign, Calendar, AlertTriangle, Box } from "lucide-react"
-import type { Producto } from "@/lib/api"
+import { Package, DollarSign, Calendar, AlertTriangle, Box, Building2 } from "lucide-react"
+import type { Producto, InventarioHotel } from "@/lib/api"
+import { inventarioService } from "@/lib/api"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface ProductDetailsDialogProps {
   product: Producto | null
@@ -13,6 +16,21 @@ interface ProductDetailsDialogProps {
 }
 
 export function ProductDetailsDialog({ product, open, onOpenChange }: ProductDetailsDialogProps) {
+  const [inventario, setInventario] = useState<InventarioHotel[]>([])
+  const [loadingInv, setLoadingInv] = useState(false)
+
+  useEffect(() => {
+    if (open && product) {
+      setLoadingInv(true)
+      inventarioService.getByProducto(product.id)
+        .then(setInventario)
+        .catch(err => console.error('Error cargando inventario por hotel', err))
+        .finally(() => setLoadingInv(false))
+    } else {
+      setInventario([])
+    }
+  }, [open, product])
+
   if (!product) return null
 
   const formatDate = (date: string | null) => {
@@ -102,16 +120,12 @@ export function ProductDetailsDialog({ product, open, onOpenChange }: ProductDet
           <div>
             <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
               <Box className="h-4 w-4" />
-              INVENTARIO
+              INVENTARIO GENERAL
             </h3>
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-2">
-                <span className="text-sm text-muted-foreground">Stock Actual:</span>
+                <span className="text-sm text-muted-foreground">Stock Total:</span>
                 <span className="col-span-2 font-semibold text-lg">{product.stock_actual}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-sm text-muted-foreground">Stock Mínimo:</span>
-                <span className="col-span-2">{product.stock_minimo}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-sm text-muted-foreground">Estado:</span>
@@ -120,6 +134,50 @@ export function ProductDetailsDialog({ product, open, onOpenChange }: ProductDet
                 </span>
               </div>
             </div>
+          </div>
+
+          <Separator />
+
+          {/* Distribución por Hotel */}
+          <div>
+            <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              DISPONIBILIDAD POR HOTEL
+            </h3>
+            {loadingInv ? (
+              <div className="text-sm text-muted-foreground">Cargando disponibilidad...</div>
+            ) : inventario.length > 0 ? (
+              <div className="border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="h-8">Sede / Hotel</TableHead>
+                      <TableHead className="h-8 text-right">Stock</TableHead>
+                      <TableHead className="h-8 text-right">Última Act.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inventario.map((inv, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{inv.hotel}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={inv.stock > 0 ? "outline" : "secondary"}>
+                            {inv.stock}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">
+                          {formatDate(inv.ultimaActualizacion)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground italic">
+                No hay registro de stock distribuido aún (Stock sin asignar).
+              </div>
+            )}
           </div>
 
           <Separator />

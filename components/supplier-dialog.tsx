@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus, Loader2, Building2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
@@ -65,14 +65,14 @@ export function SupplierDialog({ supplier, onSuccess }: SupplierDialogProps) {
 
       if (isEditing && supplier) {
         await proveedoresService.update(supplier.id, proveedorData)
-        toast.success("Proveedor actualizado", {
+        toast.success("Hotel actualizado", {
           description: `${proveedorData.nombre} ha sido actualizado correctamente.`,
         })
         try {
           registrarAuditoria({
             accion: 'actualizar',
             modulo: 'proveedores',
-            descripcion: `Proveedor actualizado: ${proveedorData.nombre}`,
+            descripcion: `Hotel actualizado: ${proveedorData.nombre}`,
             detalles: JSON.stringify({ id: supplier.id, ...proveedorData }),
             registroId: supplier.id
           })
@@ -81,7 +81,7 @@ export function SupplierDialog({ supplier, onSuccess }: SupplierDialogProps) {
         }
       } else {
         await proveedoresService.create(proveedorData)
-        toast.success("Proveedor agregado", {
+        toast.success("Hotel agregado", {
           description: `${proveedorData.nombre} ha sido agregado al sistema.`,
         })
         try {
@@ -89,7 +89,7 @@ export function SupplierDialog({ supplier, onSuccess }: SupplierDialogProps) {
           registrarAuditoria({
             accion: 'crear',
             modulo: 'proveedores',
-            descripcion: `Proveedor creado: ${proveedorData.nombre}`,
+            descripcion: `Hotel creado: ${proveedorData.nombre}`,
             detalles: JSON.stringify(proveedorData),
             registroId: undefined
           })
@@ -180,7 +180,7 @@ export function SupplierDialog({ supplier, onSuccess }: SupplierDialogProps) {
               {isEditing ? 'Editar Proveedor' : 'Agregar Nuevo Proveedor'}
             </DialogTitle>
             <DialogDescription>
-              {isEditing ? 'Modifica los datos del proveedor.' : 'Registra un nuevo proveedor para tu barbería.'}
+              {isEditing ? 'Modifica los datos del proveedor.' : 'Registra un nuevo proveedor para el sistema.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

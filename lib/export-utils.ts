@@ -1,6 +1,7 @@
-import jsPDF from 'jspdf'
+﻿import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
+import { Salida } from './api'
 
 // ============================================================================
 // UTILIDADES PARA EXPORTAR A PDF Y EXCEL
@@ -40,7 +41,7 @@ const captureChartAsImage = async (chartId: string): Promise<string | null> => {
 
     // Clonar el SVG para no afectar el original
     const clonedSvg = svgElement.cloneNode(true) as SVGElement
-    
+
     // Obtener dimensiones
     const bbox = svgElement.getBoundingClientRect()
     clonedSvg.setAttribute('width', bbox.width.toString())
@@ -53,14 +54,14 @@ const captureChartAsImage = async (chartId: string): Promise<string | null> => {
     // Serializar SVG a string
     const serializer = new XMLSerializer()
     const svgString = serializer.serializeToString(clonedSvg)
-    
+
     // Crear un canvas para convertir SVG a imagen
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas')
       canvas.width = bbox.width * 2 // 2x para mejor calidad
       canvas.height = bbox.height * 2
       const ctx = canvas.getContext('2d')
-      
+
       if (!ctx) {
         resolve(null)
         return
@@ -69,24 +70,24 @@ const captureChartAsImage = async (chartId: string): Promise<string | null> => {
       const img = new Image()
       const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
       const url = URL.createObjectURL(blob)
-      
+
       img.onload = () => {
         // Fondo blanco
         ctx.fillStyle = 'white'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
-        
+
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
         URL.revokeObjectURL(url)
-        
+
         const dataUrl = canvas.toDataURL('image/png')
         resolve(dataUrl)
       }
-      
+
       img.onerror = () => {
         URL.revokeObjectURL(url)
         resolve(null)
       }
-      
+
       img.src = url
     })
   } catch (error) {
@@ -110,17 +111,17 @@ export const exportarReportePDF = async (data: ExportReporteData) => {
   // Fecha de generación
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  const fechaTexto = data.fechaGeneracion 
-    ? data.fechaGeneracion.toLocaleDateString('es-GT', { 
-        year: 'numeric', 
-        month: 'long', 
+  const fechaTexto = data.fechaGeneracion
+    ? data.fechaGeneracion.toLocaleDateString('es-GT', {
+        year: 'numeric',
+        month: 'long',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
       })
-    : new Date().toLocaleDateString('es-GT', { 
-        year: 'numeric', 
-        month: 'long', 
+    : new Date().toLocaleDateString('es-GT', {
+        year: 'numeric',
+        month: 'long',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
@@ -150,7 +151,7 @@ export const exportarReportePDF = async (data: ExportReporteData) => {
 
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  
+
   const statsData = [
     ['Total de Movimientos', data.stats.totalMovimientos.toString()],
     ['Rotación Promedio', `${data.stats.rotacionPromedio.toFixed(1)}x`],
@@ -173,7 +174,6 @@ export const exportarReportePDF = async (data: ExportReporteData) => {
   try {
     const valorChartImage = await captureChartAsImage('valor-inventario-chart')
     if (valorChartImage) {
-      // Nueva página para gráficos
       if (yPos > 200) {
         doc.addPage()
         yPos = 20
@@ -184,7 +184,7 @@ export const exportarReportePDF = async (data: ExportReporteData) => {
       doc.text('Evolución del Valor del Inventario', 14, yPos)
       yPos += 8
 
-      const imgWidth = pageWidth - 28 // Margen de 14 a cada lado
+      const imgWidth = pageWidth - 28 
       const imgHeight = 80
       doc.addImage(valorChartImage, 'PNG', 14, yPos, imgWidth, imgHeight)
       yPos += imgHeight + 15
@@ -252,14 +252,14 @@ export const exportarReportePDF = async (data: ExportReporteData) => {
     yPos = (doc as any).lastAutoTable.finalY + 15
   }
 
-  // Nueva página si es necesario
-  if (yPos > 250) {
-    doc.addPage()
-    yPos = 20
-  }
-
   // Distribución por Categorías (tabla)
   if (data.categorias && data.categorias.length > 0) {
+    // Check space
+    if (yPos > 220) {
+        doc.addPage()
+        yPos = 20
+    }
+
     doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
     doc.text('Resumen por Categoría', 14, yPos)
@@ -280,80 +280,130 @@ export const exportarReportePDF = async (data: ExportReporteData) => {
       headStyles: { fillColor: [59, 130, 246], fontStyle: 'bold' },
       margin: { left: 14, right: 14 }
     })
-
+    
     yPos = (doc as any).lastAutoTable.finalY + 15
-  }
-
-  // GRÁFICO: Comparación Mensual
-  try {
-    const mensualChartImage = await captureChartAsImage('monthly-comparison-chart')
-    if (mensualChartImage) {
-      // Nueva página para el gráfico mensual
-      if (yPos > 200) {
-        doc.addPage()
-        yPos = 20
-      }
-
-      doc.setFontSize(14)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Comparación Mensual de Movimientos', 14, yPos)
-      yPos += 8
-
-      const imgWidth = pageWidth - 28
-      const imgHeight = 80
-      doc.addImage(mensualChartImage, 'PNG', 14, yPos, imgWidth, imgHeight)
-      yPos += imgHeight + 15
-    }
-  } catch (error) {
-    console.error('Error agregando gráfico mensual:', error)
-  }
-
-  // Comparación mensual (tabla) si hay espacio
-  if (data.comparacionMensual && data.comparacionMensual.length > 0) {
-    if (yPos > 200) {
-      doc.addPage()
-      yPos = 20
-    }
-
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Detalle Comparación Mensual', 14, yPos)
-    yPos += 8
-
-    const mensualData = data.comparacionMensual.map(m => [
-      m.mes,
-      `Q${m.entradas.toLocaleString('es-GT', { maximumFractionDigits: 0 })}`,
-      m.salidas.toString(),
-      m.diferencia > 0 ? `+Q${m.diferencia.toLocaleString('es-GT', { maximumFractionDigits: 0 })}` : `Q${m.diferencia.toLocaleString('es-GT', { maximumFractionDigits: 0 })}`
-    ])
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [['Mes', 'Inversión', 'Salidas', 'Diferencia']],
-      body: mensualData,
-      theme: 'striped',
-      headStyles: { fillColor: [59, 130, 246], fontStyle: 'bold' },
-      margin: { left: 14, right: 14 }
-    })
-  }
-
-  // Pie de página
-  const totalPages = doc.getNumberOfPages()
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i)
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'italic')
-    doc.text(
-      `Página ${i} de ${totalPages}`,
-      pageWidth / 2,
-      doc.internal.pageSize.height - 10,
-      { align: 'center' }
-    )
   }
 
   // Guardar el PDF
   const fileName = `Reporte_Inventario_${new Date().toISOString().split('T')[0]}.pdf`
   doc.save(fileName)
+}
+
+// ============================================================================
+// NUEVO: GENERADOR DE COMANDA (TICKET POS)
+// ============================================================================
+
+export const generarComandaPDF = (salida: Salida, nombreEmpresa: string = 'Inventario Hotel') => {
+  // Configuración de ticket (hoja estrecha ~80mm width)
+  // jsPDF unit: mm. Format [width, height]. Height is dynamic but we start large.
+  const ticketWidth = 80
+  const ticketHeight = 200 // Initial, can be irrelevant if we don't paginate
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: [ticketWidth, ticketHeight]
+  })
+
+  let y = 10
+  const margin = 5
+  const contentWidth = ticketWidth - (margin * 2)
+  const centerX = ticketWidth / 2
+
+  // --- HEADER ---
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text(nombreEmpresa, centerX, y, { align: 'center' })
+  y += 5
+
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  if (salida.destino) {
+     doc.text(salida.destino, centerX, y, { align: 'center' })
+     y += 4
+  }
+  
+  doc.setFontSize(8)
+  doc.text(`Fecha: ${new Date(salida.fechaSalida).toLocaleDateString()}`, margin, y)
+  y += 4
+  doc.text(`Ticket: ${salida.numeroSalida}`, margin, y)
+  y += 4
+  if (salida.cliente) {
+      doc.text(`Cliente: ${salida.cliente}`, margin, y)
+      y += 4
+  }
+
+  // --- SEPARATOR ---
+  doc.setLineWidth(0.1)
+  doc.line(margin, y, ticketWidth - margin, y)
+  y += 3
+
+  // --- ITEMS ---
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  // Headers: Cant | Desc | Total
+  doc.text("Cant", margin, y)
+  doc.text("Descripcion", margin + 10, y)
+  doc.text("Total", ticketWidth - margin, y, { align: 'right' })
+  y += 4
+  doc.setFont('helvetica', 'normal')
+
+  let granTotal = 0
+
+  salida.detalleSalida?.forEach(detalle => {
+      const nombreProducto = detalle.producto?.nombre || 'Producto'
+      // Truncar nombre si muy largo
+      const cleanName = nombreProducto.length > 20 ? nombreProducto.substring(0, 20) + '..' : nombreProducto
+      
+      const cantidad = detalle.cantidad
+      // Calcular subtotal si no viene (fallback)
+      const subtotal = detalle.subtotal || (detalle.precioUnitario ? (detalle.precioUnitario * cantidad) : 0)
+      
+      const priceTxt = `Q${subtotal.toFixed(2)}`
+      
+      doc.text(cantidad.toString(), margin, y)
+      doc.text(cleanName, margin + 10, y)
+      doc.text(priceTxt, ticketWidth - margin, y, { align: 'right' })
+      y += 4
+      
+      // Si hay precio unitario y es > 1 unidad, mostrar "@ Q.xx"
+      if (cantidad > 1 && detalle.precioUnitario) {
+          doc.setFontSize(7)
+          doc.setTextColor(100)
+          doc.text(`   @ Q${detalle.precioUnitario.toFixed(2)}`, margin + 10, y)
+          doc.setTextColor(0)
+          doc.setFontSize(8)
+          y += 3
+      }
+      
+      granTotal += subtotal
+  })
+
+  // --- TOTALS ---
+  y += 2
+  doc.line(margin, y, ticketWidth - margin, y)
+  y += 5
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  const finalTotal = salida.total ?? granTotal
+  doc.text("TOTAL:", margin, y)
+  doc.text(`Q${finalTotal.toFixed(2)}`, ticketWidth - margin, y, { align: 'right' })
+  y += 5
+
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  if (salida.metodoPago) {
+      doc.text(`Pago: ${salida.metodoPago}`, margin, y)
+      y += 5
+  }
+
+  // --- FOOTER ---
+  y += 5
+  doc.setFontSize(7)
+  doc.text("¡Gracias por su compra!", centerX, y, { align: 'center' })
+  
+  // Guardar
+  doc.save(`Ticket_${salida.numeroSalida}.pdf`)
 }
 
 export const exportarReporteExcel = (data: ExportReporteData) => {
@@ -379,10 +429,10 @@ export const exportarReporteExcel = (data: ExportReporteData) => {
   }
 
   const wsResumen = XLSX.utils.aoa_to_sheet(resumenData)
-  
+
   // Estilos para el título
   wsResumen['!cols'] = [{ wch: 30 }, { wch: 20 }]
-  
+
   XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen')
 
   // Hoja 2: Top Productos
@@ -410,7 +460,7 @@ export const exportarReporteExcel = (data: ExportReporteData) => {
       { wch: 10 },
       { wch: 15 }
     ]
-    
+
     XLSX.utils.book_append_sheet(wb, wsProductos, 'Top Productos')
   }
 
@@ -426,7 +476,7 @@ export const exportarReporteExcel = (data: ExportReporteData) => {
 
     const wsCategorias = XLSX.utils.aoa_to_sheet([...categoriasHeaders, ...categoriasData])
     wsCategorias['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 15 }, { wch: 12 }]
-    
+
     XLSX.utils.book_append_sheet(wb, wsCategorias, 'Categorías')
   }
 
@@ -442,7 +492,7 @@ export const exportarReporteExcel = (data: ExportReporteData) => {
 
     const wsMensual = XLSX.utils.aoa_to_sheet([...mensualHeaders, ...mensualData])
     wsMensual['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 15 }]
-    
+
     XLSX.utils.book_append_sheet(wb, wsMensual, 'Comparación Mensual')
   }
 
@@ -456,7 +506,7 @@ export const exportarReporteExcel = (data: ExportReporteData) => {
 
     const wsValor = XLSX.utils.aoa_to_sheet([...valorHeaders, ...valorData])
     wsValor['!cols'] = [{ wch: 15 }, { wch: 18 }]
-    
+
     XLSX.utils.book_append_sheet(wb, wsValor, 'Evolución Valor')
   }
 

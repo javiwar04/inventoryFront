@@ -13,8 +13,10 @@ import { ProtectedRoute } from "@/components/protected-route"
 import { usePermissions } from "@/hooks/use-permissions"
 import { entradasService, productosService } from "@/lib/api"
 import { toast } from "sonner"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function EntriesPage() {
+  const { user, isLoading: authLoading } = useAuth()
   const { canView, canCreate } = usePermissions()
   const [stats, setStats] = useState({
     entradasMes: 0,
@@ -25,15 +27,17 @@ export default function EntriesPage() {
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
-    loadStats()
+    if (!authLoading) {
+      loadStats()
+    }
     
     const handleCreated = () => {
       setRefreshKey(prev => prev + 1)
-      loadStats()
+      if (!authLoading) loadStats()
     }
     window.addEventListener('entradas:created', handleCreated)
     return () => window.removeEventListener('entradas:created', handleCreated)
-  }, [])
+  }, [authLoading, user])
 
   const loadStats = async () => {
     try {
@@ -43,23 +47,31 @@ export default function EntriesPage() {
         productosService.getAll()
       ])
 
+      // FILTRAR SI ES EMPLEADO (HOTEL)
+      let entradasFiltradas = entradas
+      if (user?.rol === 'empleado' && user.id) {
+        entradasFiltradas = entradas.filter(e => e.creadoPor === user.id)
+      }
+
       const now = new Date()
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       
-      const entradasMes = entradas.filter(e => 
+      // Conteo Mes Actual
+      const entradasMes = entradasFiltradas.filter(e => 
         new Date(e.fechaEntrada) >= firstDayOfMonth
-      )
+      ).length
 
-      const productosIngresados = entradasMes.reduce((sum, e) => 
+      // Totales Históricos (del usuario/hotel)
+      const productosIngresados = entradasFiltradas.reduce((sum, e) => 
         sum + (e.detalleEntrada?.length || (e as any).DetalleEntrada?.length || 0), 0
       )
 
-      const inversionTotal = entradasMes.reduce((sum, e) => 
+      const inversionTotal = entradasFiltradas.reduce((sum, e) => 
         sum + (e.total || 0), 0
       )
 
       setStats({
-        entradasMes: entradasMes.length,
+        entradasMes,
         productosIngresados,
         inversionTotal
       })

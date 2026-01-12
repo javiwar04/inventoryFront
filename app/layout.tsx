@@ -18,8 +18,13 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Sistema de Inventario - Barbería",
-  description: "Sistema completo de gestión de inventario para barbería",
+  title: "Sistema de Inventario - SELVAMO",
+  description: "Sistema completo de gestión de inventario para SELVAMO",
+  icons: {
+    icon: "/logoselvamo.png",
+    shortcut: "/logoselvamo.png",
+    apple: "/logoselvamo.png",
+  },
 }
 
 export default function RootLayout({

@@ -1,6 +1,7 @@
 "use client"
 
 import { Bell, Search, User, LogOut, Settings, Shield, ChevronDown } from "lucide-react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -110,11 +111,11 @@ export function Header() {
       <div className="flex h-16 w-full items-center px-6 justify-between">
         {/* Logo y título */}
         <div className="mr-6 flex items-center space-x-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary">
-            <span className="text-sm font-bold text-white">B</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
+            <Image src="/logoselvamo.png" alt="Logo" width={24} height={24} className="object-contain" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold leading-none">Barbería</span>
+            <span className="text-sm font-semibold leading-none">SELVAMO</span>
             <span className="text-xs text-muted-foreground">Sistema de Inventario</span>
           </div>
         </div>

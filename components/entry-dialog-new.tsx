@@ -214,10 +214,10 @@ export function EntryDialogNew() {
               <Input type="date" value={fechaEntrada} onChange={(e) => setFechaEntrada(e.target.value)} required />
             </div>
             <div>
-              <Label>Proveedor (Opcional)</Label>
+              <Label>Hotel Destino</Label>
               <Select value={proveedorId} onValueChange={setProveedorId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar proveedor" />
+                  <SelectValue placeholder="Seleccionar hotel" />
                 </SelectTrigger>
                 <SelectContent>
                   {proveedores.map(p => (

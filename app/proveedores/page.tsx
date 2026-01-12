@@ -87,12 +87,12 @@ export default function ProveedoresPage() {
       const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
       const link = document.createElement('a')
       link.href = URL.createObjectURL(blob)
-      link.download = `proveedores_${new Date().toISOString().split('T')[0]}.csv`
+      link.download = `hoteles_${new Date().toISOString().split('T')[0]}.csv`
       link.click()
       
-      toast.success(`${proveedores.length} proveedores exportados exitosamente`)
+      toast.success(`${proveedores.length} hoteles exportados exitosamente`)
     } catch (error) {
-      toast.error('Error al exportar proveedores')
+      toast.error('Error al exportar hoteles')
       console.error('Error al exportar:', error)
     }
   }
@@ -132,9 +132,9 @@ export default function ProveedoresPage() {
               <div className="container px-6 py-8">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h1 className="text-4xl font-bold text-gradient mb-2">Proveedores</h1>
+                    <h1 className="text-4xl font-bold text-gradient mb-2">Hoteles</h1>
                     <p className="text-lg text-muted-foreground">
-                      Gestiona y administra todos los proveedores
+                      Gestiona y administra todos los hoteles
                     </p>
                   </div>
                   {canCreate("proveedores") && <SupplierDialog onSuccess={handleSupplierSuccess} />}
@@ -153,7 +153,7 @@ export default function ProveedoresPage() {
                   <div className="grid gap-6 md:grid-cols-3 mb-8">
                     <div className="glass-card rounded-2xl p-6 hover-lift smooth-transition">
                       <StatsCard
-                        title="Total Proveedores"
+                        title="Total Hoteles"
                         value={stats.totalProveedores.toString()}
                         change={`${stats.proveedoresActivos} activos`}
                         changeType="neutral"

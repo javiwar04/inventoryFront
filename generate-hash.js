@@ -4,7 +4,7 @@
 const bcrypt = require('bcryptjs');
 
 // CAMBIA ESTA CONTRASEÑA por la que quieras para el usuario admin
-const password = 'javier123';
+const password = 'nuevacontraseña123';
 
 bcrypt.genSalt(10, (err, salt) => {
   if (err) {
@@ -21,6 +21,6 @@ bcrypt.genSalt(10, (err, salt) => {
     console.log('\n✅ Hash generado exitosamente:\n');
     console.log(hash);
     console.log('\n📋 Copia este hash y ejecuta en SQL Server:\n');
-    console.log(`UPDATE usuarios SET password_hash = '${hash}' WHERE usuario = 'admin';\n`);
+    console.log(`UPDATE usuarios SET password_hash = '${hash}' WHERE usuario = 'jGuerra';\n`);
   });
 });

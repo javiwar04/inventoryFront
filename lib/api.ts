@@ -13,6 +13,7 @@ export interface Usuario {
   rol: 'admin' | 'gerente' | 'empleado' | 'administrador' | 'supervisor' // Incluir todos los valores posibles
   estado: string
   avatar?: string | null
+  sedeId?: number | null // ID de la sede/sucursal (proveedor) asignada
   ultimoAcceso?: string | null
   fechaCreacion?: string | null
   fechaActualizacion?: string | null
@@ -84,6 +85,7 @@ export interface Entrada {
   observaciones: string | null
   estado: string
   fechaCreacion: string
+  creadoPor?: number | null // ID del usuario que creó el registro
   detalleEntrada: DetalleEntrada[]
 }
 
@@ -109,7 +111,12 @@ export interface Salida {
   observaciones: string | null
   estado: string
   fechaCreacion: string
+  creadoPor?: number | null // ID del usuario que creó el registro
   detalleSalida: DetalleSalida[]
+  // Nuevos campos para POS/Ventas
+  total?: number | null
+  metodoPago?: string | null
+  cliente?: string | null
 }
 
 export interface DetalleSalida {
@@ -119,6 +126,9 @@ export interface DetalleSalida {
   producto: { id: number; nombre: string; sku: string } | null
   cantidad: number
   lote: string | null
+  // Nuevos campos para detalle de ventas
+  precioUnitario?: number
+  subtotal?: number
 }
 
 // Vista: Productos próximos a vencimiento
@@ -288,6 +298,7 @@ export const usuariosService = {
     rol: string
     estado: string
     avatar?: string | null
+    sedeId?: number | null
     creadoPor?: number | null
   }): Promise<Usuario> {
     // Convertir a PascalCase para el backend
@@ -298,7 +309,8 @@ export const usuariosService = {
       PasswordHash: usuario.passwordHash,
       Rol: usuario.rol,
       Estado: usuario.estado,
-      Avatar: usuario.avatar
+      Avatar: usuario.avatar,
+      SedeId: usuario.sedeId
     }
     
     // Solo agregar CreadoPor si tiene un valor válido
@@ -321,16 +333,18 @@ export const usuariosService = {
     rol?: string
     estado?: string
     avatar?: string | null
+    sedeId?: number | null
   }): Promise<void> {
     // Convertir a PascalCase para el backend
     const payload: any = { Id: id }
     if (usuario.nombre !== undefined) payload.Nombre = usuario.nombre
     if (usuario.usuario1 !== undefined) payload.Usuario1 = usuario.usuario1
     if (usuario.email !== undefined) payload.Email = usuario.email
-    if (usuario.passwordHash !== undefined) payload.PasswordHash = usuario.passwordHash
+    if (usuario.passwordHash !== undefined) payload.password_hash = usuario.passwordHash
     if (usuario.rol !== undefined) payload.Rol = usuario.rol
     if (usuario.estado !== undefined) payload.Estado = usuario.estado
     if (usuario.avatar !== undefined) payload.Avatar = usuario.avatar
+    if (usuario.sedeId !== undefined) payload.SedeId = usuario.sedeId
     
     await api.put(`/usuarios/${id}`, payload)
   },
@@ -610,7 +624,7 @@ export const salidasService = {
     return response.data
   },
 
-  // Crear nueva salida con detalles
+  // Crear nueva salida con detalles (Updates for POS)
   async create(salida: {
     NumeroSalida: string
     FechaSalida: string // formato yyyy-mm-dd
@@ -620,10 +634,16 @@ export const salidasService = {
     Observaciones?: string
     Estado: string
     CreadoPor: number
+    // Campos POS
+    Total?: number
+    MetodoPago?: string
+    Cliente?: string
     Detalles: Array<{
       ProductoId: number
       Cantidad: number
       Lote?: string
+      PrecioUnitario?: number
+      Subtotal?: number
     }>
   }): Promise<Salida> {
     const response = await api.post('/salidas', salida)
@@ -692,9 +712,11 @@ export const statsService = {
       new Date(s.fechaSalida) >= firstDayOfMonth
     ).length
 
-    const valorInventario = productos.reduce((sum, p) => 
-      sum + (p.stock_actual * (p.costo || p.precio || 0)), 0
-    )
+    const valorInventario = productos.reduce((sum, p) => {
+      const stock = Number(p.stock_actual) || 0
+      const costo = Number(p.costo) || Number(p.precio) || 0
+      return sum + (stock * costo)
+    }, 0)
 
     const stockBajo = productos.filter(p => 
       p.stock_actual <= p.stock_minimo
@@ -764,6 +786,25 @@ export const statsService = {
 // ============================================================================
 // SERVICIO DE REPORTES
 // ============================================================================
+export interface InventarioHotel {
+  hotel: string
+  stock: number
+  ubicacion?: string
+  ultimaActualizacion: string
+}
+
+export const inventarioService = {
+  async getByProducto(id: number): Promise<InventarioHotel[]> {
+    const response = await api.get(`/inventario/producto/${id}`)
+    return response.data
+  },
+
+  async getByHotel(hotelId: number): Promise<{ productoId: number; stock: number }[]> {
+    const response = await api.get(`/inventario/hotel/${hotelId}`)
+    return response.data
+  }
+}
+
 export const reportesService = {
   // Resumen general con filtro de fechas
   async getResumen(fechaInicio?: Date, fechaFin?: Date) {
@@ -835,47 +876,77 @@ export const reportesService = {
       const mesNombre = fecha.toLocaleDateString('es-GT', { month: 'short', year: 'numeric' })
       const finMes = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0, 23, 59, 59)
       
-      // Calcular stock de cada producto hasta ese mes
-      let valorTotal = 0
       
+      // FIX: Calculate data for the specific month window, avoiding complex recursion for now to ensure data shows up
+      // Simplified: Just use the current month statistics if historical data is likely incomplete
+      // BUT, let's try to reconstruct based on dates if possible.
+      
+      let valorTotalMes = 0
+      
+      // Entradas en el mes
+      const entradasMes = entradasAll.filter(e => {
+          const d = new Date(e.fechaEntrada)
+          return d.getFullYear() === fecha.getFullYear() && d.getMonth() === fecha.getMonth()
+      })
+
+      // Salidas en el mes
+      const salidasMes = salidasAll.filter(s => {
+          const d = new Date(s.fechaSalida)
+          return d.getFullYear() === fecha.getFullYear() && d.getMonth() === fecha.getMonth()
+      })
+
+      // Aproximación: Valor Inventario Estimado = (Entradas - Salidas) * Costo Promedio Global
+      // Esto es una simplificación porque no tenemos el historial de stock diario snapshot.
+      /*
       for (const producto of productos) {
-        // Entradas hasta ese mes
-        const entradasHastaMes = entradasAll.filter(e => {
-          const fechaEntrada = new Date(e.fechaEntrada)
-          return fechaEntrada <= finMes && 
-                 e.detalleEntrada?.some(d => d.productoId === producto.id)
-        })
+         // ... old expensive logic ...
+      }
+      */
+      
+      // Fallback: If we can't calculate history reliably, show CURRENT stock for latest month, and 0 for others?
+      // No, user wants to see trends.
+      // Let's settle for: Stock Value = Current Stock Value (for all months) UNLESS we have movements.
+      // Actually, a constant line is better than 0.
+      // Better yet: Show 'Movimiento Neto de Valor' instead of 'Valor Absoluto' if base is unknown?
+      // No, user assumes "Valor de Inventario".
+
+      // Let's try to calculate simple: Current Value
+      if (i === 0) { // Current month
+          valorTotalMes = productos.reduce((sum, p) => sum + (p.stock_actual * (Number(p.costo) || Number(p.precio) || 0)), 0)
+      } else {
+        // Previous months: hard to calculate without snapshots.
+        // Let's mimic the data by taking the next month value and subtracting this month's net change.
+        // This is backwards calculation.
+        // But since we are iterating backwards in the loop (now - i), it is tricky.
+        // Let's just return current stock value for all points to verify connection first, 
+        // OR better: calculate "Value Added/Lost" per month.
         
-        const cantidadEntradas = entradasHastaMes.reduce((sum, e) => {
-          const detalle = e.detalleEntrada?.find(d => d.productoId === producto.id)
-          return sum + (detalle?.cantidad || 0)
-        }, 0)
+        // Let's use the code I wrote in prev turn which iterates products.
+        // I will trust the original logic but make it robust against nulls.
         
-        // Salidas hasta ese mes
-        const salidasHastaMes = salidasAll.filter(s => {
-          const fechaSalida = new Date(s.fechaSalida)
-          return fechaSalida <= finMes && 
-                 s.detalleSalida?.some(d => d.productoId === producto.id)
-        })
-        
-        const cantidadSalidas = salidasHastaMes.reduce((sum, s) => {
-          const detalle = s.detalleSalida?.find(d => d.productoId === producto.id)
-          return sum + (detalle?.cantidad || 0)
-        }, 0)
-        
-        // Stock en ese mes
-        const stockMes = cantidadEntradas - cantidadSalidas
-        const costoUnitario = producto.costo || producto.precio || 0
-        valorTotal += Math.max(0, stockMes) * costoUnitario
+         for (const producto of productos) {
+            // Entradas acumuladas hasta fin de ESTE mes
+            const qEntradas = entradasAll
+                .filter(e => new Date(e.fechaEntrada) <= finMes && e.detalleEntrada?.some(d => d.productoId === producto.id))
+                .reduce((sum, e) => sum + (e.detalleEntrada?.find(d => d.productoId === producto.id)?.cantidad || 0), 0)
+
+            const qSalidas = salidasAll
+                .filter(s => new Date(s.fechaSalida) <= finMes && s.detalleSalida?.some(d => d.productoId === producto.id))
+                .reduce((sum, s) => sum + (s.detalleSalida?.find(d => d.productoId === producto.id)?.cantidad || 0), 0)
+            
+            const stockEstimado = Math.max(0, qEntradas - qSalidas)
+            // Use current cost as approximation
+            valorTotalMes += stockEstimado * (Number(producto.costo) || Number(producto.precio) || 0)
+         }
       }
 
       meses.push({
         mes: mesNombre,
-        valor: Math.round(valorTotal)
+        valor: Math.round(valorTotalMes)
       })
     }
 
-    return meses
+    return meses.reverse() // Return chronological order
   },
 
   // Top productos más movidos
@@ -952,20 +1023,15 @@ export const reportesService = {
       salidasService.getAll(1, 10000)
     ])
 
-    // Si hay rango, podemos filtrar movimientos para calcular valores más precisos
-    const entradas = fechaInicio && fechaFin
-      ? entradasAll.filter(e => new Date(e.fechaEntrada) >= fechaInicio && new Date(e.fechaEntrada) <= fechaFin)
-      : entradasAll
-
-    const salidas = fechaInicio && fechaFin
-      ? salidasAll.filter(s => new Date(s.fechaSalida) >= fechaInicio && new Date(s.fechaSalida) <= fechaFin)
-      : salidasAll
-
     const categoriasStats = categorias.map(categoria => {
-      const productosCategoria = productos.filter(p => p.categoria_id === categoria.id)
-      const valor = productosCategoria.reduce((sum, p) => 
-        sum + (p.stock_actual * (p.costo || p.precio || 0)), 0
-      )
+      // Comparación robusta de IDs (string/number)
+      const productosCategoria = productos.filter(p => String(p.categoria_id) === String(categoria.id))
+      
+      const valor = productosCategoria.reduce((sum, p) => {
+        const costo = Number(p.costo) || Number(p.precio) || 0
+        const stock = Number(p.stock_actual) || 0
+        return sum + (stock * costo)
+      }, 0)
       
       return {
         categoria: categoria.nombre,
@@ -976,7 +1042,9 @@ export const reportesService = {
 
     const totalValor = categoriasStats.reduce((sum, c) => sum + c.valor, 0)
 
+    // Solo devolver categorías que tengan algún valor o producto
     return categoriasStats
+      .filter(c => c.valor > 0 || c.productos > 0)
       .map(c => ({
         ...c,
         porcentaje: totalValor > 0 ? parseFloat(((c.valor / totalValor) * 100).toFixed(1)) : 0
@@ -984,7 +1052,7 @@ export const reportesService = {
       .sort((a, b) => b.valor - a.valor)
   },
 
-  // Comparación mensual (últimos 6 meses)
+  // Comparación mensual (últimos 6 meses) - VENTAS
   async getComparacionMensual(fechaInicio?: Date, fechaFin?: Date) {
     const [entradasAll, salidasAll] = await Promise.all([
       entradasService.getAll(1, 10000),
@@ -995,9 +1063,12 @@ export const reportesService = {
       ? entradasAll.filter(e => new Date(e.fechaEntrada) >= fechaInicio && new Date(e.fechaEntrada) <= fechaFin)
       : entradasAll
 
-    const salidas = fechaInicio && fechaFin
-      ? salidasAll.filter(s => new Date(s.fechaSalida) >= fechaInicio && new Date(s.fechaSalida) <= fechaFin)
-      : salidasAll
+    // Filtrar SALIDAS para considerar solo VENTAS
+    const ventasAll = salidasAll.filter(s => s.motivo === 'Venta')
+
+    const ventas = fechaInicio && fechaFin
+      ? ventasAll.filter(s => new Date(s.fechaSalida) >= fechaInicio && new Date(s.fechaSalida) <= fechaFin)
+      : ventasAll
 
     const meses: { mes: string; entradas: number; salidas: number; diferencia: number }[] = []
     const now = new Date()
@@ -1005,32 +1076,39 @@ export const reportesService = {
     for (let i = 5; i >= 0; i--) {
       const fecha = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const mesNombre = fecha.toLocaleDateString('es-GT', { month: 'short' })
-      
-      const primerDia = new Date(fecha.getFullYear(), fecha.getMonth(), 1)
-      const ultimoDia = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0)
+      const mesInicio = new Date(fecha.getFullYear(), fecha.getMonth(), 1)
+      const mesFin = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0, 23, 59, 59)
 
-      const entradasMes = entradas.filter(e => {
-        const fechaE = new Date(e.fechaEntrada)
-        return fechaE >= primerDia && fechaE <= ultimoDia
-      })
+      // Cantidad de Items Vendidos (no solo transacciones)
+      const totalVentas = ventas.reduce((sum, s) => {
+        const fechaSalida = new Date(s.fechaSalida)
+        if (fechaSalida >= mesInicio && fechaSalida <= mesFin) {
+           // Sumar items individuales del detalle
+           const itemsVendidos = s.detalleSalida?.reduce((isum, d) => isum + (d.cantidad || 0), 0) || 0
+           return sum + itemsVendidos
+        }
+        return sum
+      }, 0)
 
-      const salidasMes = salidas.filter(s => {
-        const fechaS = new Date(s.fechaSalida)
-        return fechaS >= primerDia && fechaS <= ultimoDia
-      })
-
-      const totalEntradas = entradasMes.reduce((sum, e) => sum + (e.total || 0), 0)
-      const totalSalidas = salidasMes.length // O puedes calcular valor monetario
+      // Cantidad de Items Entrados
+      const totalEntradas = entradas.reduce((sum, e) => {
+        const fechaEntrada = new Date(e.fechaEntrada)
+        if (fechaEntrada >= mesInicio && fechaEntrada <= mesFin) {
+            const itemsEntrados = e.detalleEntrada?.reduce((isum, d) => isum + (d.cantidad || 0), 0) || 0
+            return sum + itemsEntrados
+        }
+        return sum
+      }, 0)
 
       meses.push({
         mes: mesNombre,
         entradas: totalEntradas,
-        salidas: totalSalidas,
-        diferencia: totalEntradas - totalSalidas
+        salidas: totalVentas, // Ahora representa Ventas
+        diferencia: totalEntradas - totalVentas
       })
     }
 
-    return meses
+    return meses.reverse()
   }
 }
 

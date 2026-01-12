@@ -116,12 +116,11 @@ export function ExitDialog() {
                   <SelectValue placeholder="Seleccionar motivo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sale">Venta</SelectItem>
-                  <SelectItem value="transfer">Transferencia</SelectItem>
-                  <SelectItem value="damaged">Producto Dañado</SelectItem>
-                  <SelectItem value="return">Devolución</SelectItem>
-                  <SelectItem value="internal">Uso Interno</SelectItem>
-                  <SelectItem value="other">Otro</SelectItem>
+                  <SelectItem value="Tarjeta de crédito">Tarjeta de crédito</SelectItem>
+                  <SelectItem value="Efectivo">Efectivo</SelectItem>
+                  <SelectItem value="Uso interno">Uso interno</SelectItem>
+                  <SelectItem value="Donación">Donación</SelectItem>
+                  <SelectItem value="Cortesía">Cortesía</SelectItem>
                 </SelectContent>
               </Select>
             </div>
