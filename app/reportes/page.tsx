@@ -268,7 +268,7 @@ export default function ReportsPage() {
                   </div>
                   <TabsList>
                       <TabsTrigger value="inventario">Inventario General</TabsTrigger>
-                      <TabsTrigger value="ventas">Ventas Detalladas (POS)</TabsTrigger>
+                      <TabsTrigger value="ventas">Ventas Detalladas</TabsTrigger>
                   </TabsList>
               </div>
 

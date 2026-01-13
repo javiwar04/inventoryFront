@@ -41,7 +41,7 @@ export function ExitDialogNew() {
   // Header Fields
   const [numeroSalida, setNumeroSalida] = useState('')
   const [fechaSalida, setFechaSalida] = useState(new Date().toISOString().split('T')[0])
-  const [metodoPago, setMetodoPago] = useState('Efectivo')
+  const [metodoPago, setMetodoPago] = useState('Efectivo Quetzales')
   const [hotelId, setHotelId] = useState('') // This maps to Destino
   const [nomCliente, setNomCliente] = useState('Consumidor Final') // This maps to Cliente
   const [observaciones, setObservaciones] = useState('')
@@ -289,7 +289,7 @@ export function ExitDialogNew() {
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md">
           <Banknote className="mr-2 h-4 w-4" />
-          Punto de Venta (POS)
+          Punto de Venta
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[1000px] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
@@ -325,9 +325,9 @@ export function ExitDialogNew() {
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="Efectivo">Efectivo</SelectItem>
-                            <SelectItem value="Tarjeta de crédito">Tarjeta de Crédito</SelectItem>
-                            <SelectItem value="Tarjeta de débito">Tarjeta de Débito</SelectItem>
+                            <SelectItem value="Efectivo Quetzales">Efectivo Quetzales</SelectItem>
+                            <SelectItem value="Efectivo Dólares">Efectivo Dólares</SelectItem>
+                            <SelectItem value="Tarjeta">Tarjeta</SelectItem>
                             <SelectItem value="Transferencia">Transferencia</SelectItem>
                             <SelectItem value="Cortesía">Cortesía / Regalo</SelectItem>
                         </SelectContent>

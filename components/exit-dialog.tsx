@@ -116,7 +116,7 @@ export function ExitDialog() {
                   <SelectValue placeholder="Seleccionar motivo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Tarjeta de crédito">Tarjeta de crédito</SelectItem>
+                  <SelectItem value="Tarjeta">Tarjeta</SelectItem>
                   <SelectItem value="Efectivo">Efectivo</SelectItem>
                   <SelectItem value="Uso interno">Uso interno</SelectItem>
                   <SelectItem value="Donación">Donación</SelectItem>

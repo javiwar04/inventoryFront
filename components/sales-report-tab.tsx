@@ -82,7 +82,11 @@ export function SalesReportTab() {
 
     // Payment Method
     if (selectedPayment !== "all") {
-        result = result.filter(s => s.metodoPago === selectedPayment)
+        if (selectedPayment === 'Tarjeta') {
+            result = result.filter(s => s.metodoPago?.toLowerCase().includes('tarjeta'))
+        } else {
+            result = result.filter(s => s.metodoPago === selectedPayment)
+        }
     }
 
     // Search (Client, Ticket, or Product inside details)
@@ -103,7 +107,11 @@ export function SalesReportTab() {
 
   // Stats Calculation
   const totalGlobal = filteredSales.reduce((acc, curr) => acc + (curr.total || 0), 0)
-  const totalEfectivo = filteredSales.filter(s => s.metodoPago === 'Efectivo').reduce((acc, curr) => acc + (curr.total || 0), 0)
+  const totalEfectivo = filteredSales.filter(s => 
+    s.metodoPago === 'Efectivo' || 
+    s.metodoPago === 'Efectivo Quetzales' || 
+    s.metodoPago === 'Efectivo Dólares'
+  ).reduce((acc, curr) => acc + (curr.total || 0), 0)
   const totalTarjeta = filteredSales.filter(s => s.metodoPago?.toLowerCase().includes('tarjeta')).reduce((acc, curr) => acc + (curr.total || 0), 0)
 
   const handleExportExcel = () => {
@@ -164,9 +172,10 @@ export function SalesReportTab() {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="Efectivo">Efectivo</SelectItem>
-                        <SelectItem value="Tarjeta de crédito">Tarjeta Crédito</SelectItem>
-                        <SelectItem value="Tarjeta de débito">Tarjeta Débito</SelectItem>
+                        <SelectItem value="Efectivo">Efectivo (General)</SelectItem>
+                        <SelectItem value="Efectivo Quetzales">Efectivo Quetzales</SelectItem>
+                        <SelectItem value="Efectivo Dólares">Efectivo Dólares</SelectItem>
+                        <SelectItem value="Tarjeta">Tarjeta</SelectItem>
                         <SelectItem value="Transferencia">Transferencia</SelectItem>
                         <SelectItem value="Cortesía">Cortesía</SelectItem>
                     </SelectContent>
