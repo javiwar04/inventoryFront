@@ -1,15 +1,15 @@
 import axios from 'axios'
 
-// Configuración base de Axios para .NET 8 API
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5152/api',
-  timeout: 15000, // Aumentado para .NET
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  withCredentials: false, // Para CORS con .NET
+  withCredentials: false,
 })
+
 
 // Interceptor para requests - añade token de autenticación
 api.interceptors.request.use(
