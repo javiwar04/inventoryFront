@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+@plugin "tailwindcss-animate";
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* Fondo principal - Gradiente sutil */
   --background: 240 10% 98%;
