@@ -85,6 +85,18 @@ api.interceptors.response.use(
     // Manejar otros errores HTTP: loguear status y body completo para depuración
     const status = error.response?.status
     const data = error.response?.data
+    
+    // Si no hay respuesta (Network Error, Timeout, CORS, DNS)
+    if (!error.response) {
+      console.error(`[AXIOS] ERROR DE RED/CONEXIÓN. Posibles causas:
+      1. El backend no está corriendo en ${api.defaults.baseURL}
+      2. CORS bloqueado (si estás en web y el backend en otro dominio sin cabeceras)
+      3. Error de SSL/HTTPS (backend HTTP vs frontend HTTPS)
+      4. Timeout (servidor lento)
+      URL intentada: ${error.config?.baseURL || ''}${error.config?.url || ''}`)
+      return Promise.reject(new Error(`Error de conexión al servidor (${api.defaults.baseURL}). Verifique que el backend esté activo.`))
+    }
+
     try {
       // Mostrar status y el body (puede ser JSON o texto)
       console.error('API Error status:', status, 'data:', data || error.message)

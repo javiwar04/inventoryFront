@@ -268,7 +268,10 @@ export const usuariosService = {
   // Obtener todos los usuarios
   async getAll(): Promise<Usuario[]> {
     const response = await api.get('/usuarios')
-    return response.data
+    // Robust check
+    if (Array.isArray(response.data)) return response.data
+    if (response.data?.data && Array.isArray(response.data.data)) return response.data.data
+    return []
   },
 
   // Obtener usuario por ID
@@ -381,7 +384,10 @@ export const permisosService = {
   // Obtener todos los permisos
   async getAll(): Promise<Permiso[]> {
     const response = await api.get('/permisos')
-    return response.data
+    // Robust check
+    if (Array.isArray(response.data)) return response.data
+    if (response.data?.data && Array.isArray(response.data.data)) return response.data.data
+    return []
   },
 
   // Obtener permiso por ID
@@ -449,13 +455,23 @@ export const productosService = {
   // Obtener productos paginados (por defecto página 1, 20 elementos)
   async getAll(page: number = 1, pageSize: number = 100): Promise<Producto[]> {
     const response = await api.get(`/productos?page=${page}&pageSize=${pageSize}`)
-    return response.data.map(mapProductoFromBackend)
+    const data = Array.isArray(response.data) 
+      ? response.data 
+      : (response.data?.data || response.data?.items || [])
+    
+    if (!Array.isArray(data)) return []
+    return data.map(mapProductoFromBackend)
   },
 
   // Obtener todos los productos sin paginación
   async getAllUnpaged(): Promise<Producto[]> {
     const response = await api.get('/productos?page=1&pageSize=1000') // Traer muchos
-    return response.data.map(mapProductoFromBackend)
+    const data = Array.isArray(response.data) 
+      ? response.data 
+      : (response.data?.data || response.data?.items || [])
+    
+    if (!Array.isArray(data)) return []
+    return data.map(mapProductoFromBackend)
   },
 
   // Obtener producto por ID
@@ -507,7 +523,10 @@ export const proveedoresService = {
   // Obtener todos los proveedores (ordenados por nombre)
   async getAll(): Promise<Proveedor[]> {
     const response = await api.get('/proveedores')
-    return response.data
+    // Robust check
+    if (Array.isArray(response.data)) return response.data
+    if (response.data?.data && Array.isArray(response.data.data)) return response.data.data
+    return []
   },
 
   // Obtener proveedor por ID
@@ -571,7 +590,19 @@ export const entradasService = {
   // Obtener todas las entradas paginadas
   async getAll(page: number = 1, pageSize: number = 100): Promise<Entrada[]> {
     const response = await api.get(`/entradas?page=${page}&pageSize=${pageSize}`)
-    return response.data
+    // Robust check for array response
+    if (Array.isArray(response.data)) {
+      return response.data
+    }
+    // If it's a paginated object { data: [], total: ... }
+    if (response.data && Array.isArray(response.data.data)) {
+      return response.data.data
+    }
+    if (response.data && Array.isArray(response.data.items)) {
+      return response.data.items
+    }
+    console.warn('entradasService.getAll received non-array:', response.data)
+    return []
   },
 
   // Obtener entrada por ID
@@ -615,7 +646,19 @@ export const salidasService = {
   // Obtener todas las salidas paginadas
   async getAll(page: number = 1, pageSize: number = 100): Promise<Salida[]> {
     const response = await api.get(`/salidas?page=${page}&pageSize=${pageSize}`)
-    return response.data
+    // Robust check for array response
+    if (Array.isArray(response.data)) {
+      return response.data
+    }
+    // If it's a paginated object { data: [], total: ... }
+    if (response.data && Array.isArray(response.data.data)) {
+      return response.data.data
+    }
+    if (response.data && Array.isArray(response.data.items)) {
+      return response.data.items
+    }
+    console.warn('salidasService.getAll received non-array:', response.data)
+    return []
   },
 
   // Obtener salida por ID
@@ -663,7 +706,10 @@ export const salidasService = {
 export const categoriasService = {
   async getAll(): Promise<{ id: number; nombre: string; descripcion?: string; codigo?: string; estado?: string }[]> {
     const response = await api.get('/categorias')
-    return response.data
+    // Robust check
+    if (Array.isArray(response.data)) return response.data
+    if (response.data?.data && Array.isArray(response.data.data)) return response.data.data
+    return []
   },
 
   async create(categoria: { nombre: string; descripcion?: string; codigo?: string; estado?: string }) {
