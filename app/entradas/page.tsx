@@ -42,8 +42,9 @@ export default function EntriesPage() {
   const loadStats = async () => {
     try {
       setLoading(true)
+      // FIX: Reducido de 1000 a 50 para evitar errores de conexión (500 Internal Server Error)
       const [entradas, productos] = await Promise.all([
-        entradasService.getAll(1, 1000),
+        entradasService.getAll(1, 50),
         productosService.getAll()
       ])
 

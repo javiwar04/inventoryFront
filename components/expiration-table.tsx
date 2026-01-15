@@ -26,7 +26,8 @@ export function ExpirationTable() {
       setLoading(true)
       
       try {
-        const entradas = await entradasService.getAll(1, 10000)
+        // FIX: Reducido de 10000 a 100 para evitar crash
+        const entradas = await entradasService.getAll(1, 100)
         
         // Construir lista de vencimientos desde lotes de entradas
         const vencimientos: VProductoVencimiento[] = []

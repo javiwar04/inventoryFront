@@ -27,7 +27,8 @@ export default function ExpirationsPage() {
 
   const loadStats = async () => {
     try {
-      const entradas = await entradasService.getAll(1, 10000)
+      // FIX: Reducido a 100 para evitar crash
+      const entradas = await entradasService.getAll(1, 100)
 
       let total = 0
       let vencen30 = 0

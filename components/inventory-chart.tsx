@@ -25,9 +25,10 @@ export function InventoryChart() {
       setLoading(true)
       
       // Obtener todos los movimientos del año
+      // FIX: Reducido de 10000 a 100 para evitar crash. La gráfica será parcial hasta arreglar backend.
       const [entradas, salidas] = await Promise.all([
-        entradasService.getAll(1, 10000),
-        salidasService.getAll(1, 10000)
+        entradasService.getAll(1, 100),
+        salidasService.getAll(1, 100)
       ])
 
       // Obtener los últimos 6 meses

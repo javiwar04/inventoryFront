@@ -30,7 +30,8 @@ export function EntriesTable() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const data = await entradasService.getAll()
+      // FIX: Limitamos a 50 por página para mayor estabilidad
+      const data = await entradasService.getAll(1, 50)
       
       // Si es empleado, filtrar solo sus entradas (Lógica de Hotel/Sucursal por Usuario)
       let filteredData = data

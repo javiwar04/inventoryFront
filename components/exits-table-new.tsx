@@ -30,7 +30,8 @@ export function ExitsTable() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const data = await salidasService.getAll()
+      // FIX: Limitamos a 50
+      const data = await salidasService.getAll(1, 50)
 
       // Si es empleado, filtrar solo sus salidas (Lógica de Hotel/Sucursal por Usuario)
       let filteredData = data
