@@ -26,6 +26,16 @@ export function EntryDetailDialog({ entrada, open, onOpenChange }: EntryDetailDi
     })
   }
 
+  // Helper para fechas que vienen como "YYYY-MM-DD" o UTC midnight
+  const formatDateOnly = (date: string) => {
+    return new Date(date).toLocaleDateString('es-GT', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      timeZone: 'UTC'
+    })
+  }
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-GT', {
       style: 'currency',
@@ -59,7 +69,7 @@ export function EntryDetailDialog({ entrada, open, onOpenChange }: EntryDetailDi
                 <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Fecha de Entrada</p>
-                  <p className="font-medium">{formatDate(entrada.fechaEntrada)}</p>
+                  <p className="font-medium">{formatDateOnly(entrada.fechaEntrada)}</p>
                 </div>
               </div>
 

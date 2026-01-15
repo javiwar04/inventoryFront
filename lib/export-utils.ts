@@ -406,6 +406,122 @@ export const generarComandaPDF = (salida: Salida, nombreEmpresa: string = 'Inven
   doc.save(`Ticket_${salida.numeroSalida}.pdf`)
 }
 
+// ============================================================================
+// NUEVO: GENERADOR DE FACTURA / PROFORMA (CARTA/A4)
+// ============================================================================
+
+export const generarFacturaPDF = (salida: Salida, nombreEmpresa: string = 'Inventario Hotel') => {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'letter'
+  })
+
+  // --- HEADER EMPRESA ---
+  doc.setFontSize(20)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(40)
+  doc.text(nombreEmpresa, 15, 20)
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(100)
+  doc.text("Dirección Principal", 15, 26) // Personalizar según config
+  doc.text("Teléfono: (502) 1234-5678", 15, 31)
+
+  // --- DATOS FACTURA (Derecha) ---
+  doc.setTextColor(0)
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.text("COMPROBANTE DE SALIDA", 200, 20, { align: 'right' })
+  
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`No. Documento: ${salida.numeroSalida}`, 200, 28, { align: 'right' })
+  doc.text(`Fecha: ${new Date(salida.fechaSalida).toLocaleDateString()}`, 200, 33, { align: 'right' })
+  doc.text(`Estado: ${salida.estado}`, 200, 38, { align: 'right' })
+
+  // --- DATOS CLIENTE ---
+  doc.setDrawColor(220)
+  doc.line(15, 45, 200, 45) // Línea separadora
+
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text("Datos del Cliente / Destino:", 15, 53)
+  
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  const clienteNombre = salida.cliente || salida.destino || 'Consumidor Final'
+  doc.text(`Cliente: ${clienteNombre}`, 15, 60)
+  if (salida.referencia) {
+    doc.text(`Referencia: ${salida.referencia}`, 15, 65)
+  }
+  if (salida.observaciones) {
+    doc.text(`Observaciones: ${salida.observaciones}`, 15, 70)
+  }
+
+  // --- TABLA DE PRODUCTOS ---
+  let startY = salida.observaciones ? 75 : 70
+  let granTotal = 0
+
+  const tableRows = salida.detalleSalida?.map(detalle => {
+    const nombre = detalle.producto?.nombre || 'Producto'
+    const precio = detalle.precioUnitario || 0
+    // Si no hay subtotal guardado, calcularlo
+    const subtotal = detalle.subtotal || (precio * detalle.cantidad)
+    granTotal += subtotal
+
+    return [
+      detalle.cantidad,
+      nombre,
+      detalle.lote || '-',
+      `Q${precio.toFixed(2)}`,
+      `Q${subtotal.toFixed(2)}`
+    ]
+  }) || []
+
+  autoTable(doc, {
+    startY: startY,
+    head: [['Cant.', 'Descripción', 'Lote', 'Precio Unit.', 'Subtotal']],
+    body: tableRows,
+    theme: 'grid',
+    headStyles: { fillColor: [60, 60, 60], textColor: 255, fontSize: 10, halign: 'center' },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 20 }, // Cant
+      1: { cellWidth: 'auto' }, // Desc
+      2: { halign: 'center', cellWidth: 30 }, // Lote
+      3: { halign: 'right', cellWidth: 30 }, // Precio
+      4: { halign: 'right', cellWidth: 30 }  // Subtotal
+    },
+    styles: { fontSize: 9, cellPadding: 3 },
+  })
+
+  // --- TOTALES ---
+  // @ts-ignore
+  const finalY = doc.lastAutoTable.finalY + 10
+  const totalDoc = salida.total ?? granTotal
+
+  doc.setFontSize(10)
+  doc.text("Método de Pago:", 15, finalY)
+  doc.setFont('helvetica', 'bold')
+  doc.text(salida.metodoPago || 'N/A', 45, finalY)
+
+  doc.setFontSize(12)
+  doc.text("TOTAL:", 160, finalY, { align: 'right' })
+  doc.setFontSize(14)
+  doc.text(`Q${totalDoc.toFixed(2)}`, 200, finalY, { align: 'right' })
+
+  // --- FOOTER ---
+  const pageHeight = doc.internal.pageSize.getHeight()
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(150)
+  doc.text("Este documento es un comprobante interno de inventario y no sustituye una factura fiscal.", 
+    doc.internal.pageSize.getWidth() / 2, pageHeight - 10, { align: 'center' })
+
+  doc.save(`Comprobante_${salida.numeroSalida}.pdf`)
+}
+
 export const exportarReporteExcel = (data: ExportReporteData) => {
   // Crear un nuevo workbook
   const wb = XLSX.utils.book_new()

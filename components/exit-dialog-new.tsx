@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash2, PackageMinus, Loader2, CreditCard, Banknote, Gift, User, Store, Printer } from "lucide-react"
 import { toast } from "sonner"
 import { salidasService, productosService, proveedoresService, registrarAuditoria, inventarioService, Salida } from "@/lib/api"
-import { generarComandaPDF } from "@/lib/export-utils"
+import { generarFacturaPDF } from "@/lib/export-utils"
 import { useAuth } from "@/contexts/auth-context"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
@@ -259,8 +259,8 @@ export function ExitDialogNew() {
                     subtotal: d.subtotal
                 }))
             }
-            generarComandaPDF(reconstructedSalida)
-            toast.info('Generando Ticket PDF...')
+            generarFacturaPDF(reconstructedSalida)
+            toast.info('Generando Factura PDF...')
         }
 
         setOpen(false)

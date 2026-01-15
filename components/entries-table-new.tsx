@@ -73,7 +73,12 @@ export function EntriesTable() {
   }
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('es-GT', { year: 'numeric', month: 'short', day: 'numeric' })
+    return new Date(date).toLocaleDateString('es-GT', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      timeZone: 'UTC' // Force UTC to avoid day shift
+    })
   }
 
   const formatCurrency = (value: number | null) => {

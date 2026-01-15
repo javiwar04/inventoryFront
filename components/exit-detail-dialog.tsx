@@ -26,6 +26,16 @@ export function ExitDetailDialog({ salida, open, onOpenChange }: ExitDetailDialo
     })
   }
 
+  // Helper para fechas que vienen como "YYYY-MM-DD" o UTC midnight (evitar desfase horario)
+  const formatDateOnly = (date: string) => {
+    return new Date(date).toLocaleDateString('es-GT', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      timeZone: 'UTC'
+    })
+  }
+
   const detalles = salida.detalleSalida || (salida as any).DetalleSalida || []
 
   return (
@@ -51,7 +61,7 @@ export function ExitDetailDialog({ salida, open, onOpenChange }: ExitDetailDialo
                 <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Fecha de Salida</p>
-                  <p className="font-medium">{formatDate(salida.fechaSalida)}</p>
+                  <p className="font-medium">{formatDateOnly(salida.fechaSalida)}</p>
                 </div>
               </div>
 

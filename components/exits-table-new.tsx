@@ -73,7 +73,12 @@ export function ExitsTable() {
   }
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('es-GT', { year: 'numeric', month: 'short', day: 'numeric' })
+    return new Date(date).toLocaleDateString('es-GT', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      timeZone: 'UTC' // Force UTC to prevent day shift
+    })
   }
 
   // Pagination
