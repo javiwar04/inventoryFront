@@ -293,7 +293,7 @@ export const exportarReportePDF = async (data: ExportReporteData) => {
 // NUEVO: GENERADOR DE COMANDA (TICKET POS)
 // ============================================================================
 
-export const generarComandaPDF = (salida: Salida, nombreEmpresa: string = 'Inventario Hotel') => {
+export const generarComandaPDF = (salida: Salida, nombreEmpresa: string = 'Inventario Hotel', preview: boolean = false) => {
   // Configuración de ticket (hoja estrecha ~80mm width)
   // jsPDF unit: mm. Format [width, height]. Height is dynamic but we start large.
   const ticketWidth = 80
@@ -402,6 +402,10 @@ export const generarComandaPDF = (salida: Salida, nombreEmpresa: string = 'Inven
   doc.setFontSize(7)
   doc.text("¡Gracias por su compra!", centerX, y, { align: 'center' })
   
+  if (preview) {
+    return doc.output('bloburl')
+  }
+
   // Guardar
   doc.save(`Ticket_${salida.numeroSalida}.pdf`)
 }
@@ -410,7 +414,7 @@ export const generarComandaPDF = (salida: Salida, nombreEmpresa: string = 'Inven
 // NUEVO: GENERADOR DE FACTURA / PROFORMA (CARTA/A4)
 // ============================================================================
 
-export const generarFacturaPDF = (salida: Salida, nombreEmpresa: string = 'Inventario Hotel') => {
+export const generarFacturaPDF = (salida: Salida, nombreEmpresa: string = 'Inventario Hotel', preview: boolean = false) => {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -518,6 +522,10 @@ export const generarFacturaPDF = (salida: Salida, nombreEmpresa: string = 'Inven
   doc.setTextColor(150)
   doc.text("Este documento es un comprobante interno de inventario y no sustituye una factura fiscal.", 
     doc.internal.pageSize.getWidth() / 2, pageHeight - 10, { align: 'center' })
+
+  if (preview) {
+    return doc.output('bloburl')
+  }
 
   doc.save(`Comprobante_${salida.numeroSalida}.pdf`)
 }

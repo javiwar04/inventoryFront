@@ -9,14 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DateRangePicker } from "@/components/date-range-picker"
 import { salidasService, proveedoresService, Salida } from "@/lib/api"
-import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard } from "lucide-react"
+import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye } from "lucide-react"
 import { toast } from "sonner"
 import { DateRange } from "react-day-picker"
 import * as XLSX from 'xlsx'
-import { generarComandaPDF } from "@/lib/export-utils"
+import { generarComandaPDF, generarFacturaPDF } from "@/lib/export-utils"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export function SalesReportTab() {
   const [loading, setLoading] = useState(true)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   
   // Raw Data
@@ -272,9 +274,17 @@ export function SalesReportTab() {
                                 <TableCell>{sale.metodoPago}</TableCell>
                                 <TableCell className="text-right font-medium">Q{(sale.total || 0).toFixed(2)}</TableCell>
                                 <TableCell className="text-center">
-                                    <Button size="sm" variant="ghost" onClick={() => generarComandaPDF(sale)} title="Reimprimir Ticket">
-                                        <Printer className="h-4 w-4" />
-                                    </Button>
+                                    <div className="flex justify-center gap-1">
+                                        <Button size="sm" variant="ghost" onClick={() => {
+                                            const result = generarFacturaPDF(sale, 'Selvamo', true)
+                                            if (result) setPreviewUrl(result.toString())
+                                        }} title="Ver Factura">
+                                            <Eye className="h-4 w-4" />
+                                        </Button>
+                                        <Button size="sm" variant="ghost" onClick={() => generarFacturaPDF(sale, 'Selvamo')} title="Descargar Factura">
+                                            <Printer className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))
@@ -282,6 +292,17 @@ export function SalesReportTab() {
                 </TableBody>
             </Table>
         </div>
+
+        <Dialog open={!!previewUrl} onOpenChange={(open) => !open && setPreviewUrl(null)}>
+            <DialogContent className="max-w-4xl h-[90vh]">
+                <DialogHeader>
+                    <DialogTitle>Vista Previa de Factura</DialogTitle>
+                </DialogHeader>
+                {previewUrl && (
+                    <iframe src={previewUrl} className="w-full h-full border rounded-md" />
+                )}
+            </DialogContent>
+        </Dialog>
     </div>
   )
 }
