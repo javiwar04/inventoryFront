@@ -323,7 +323,7 @@ export const generarComandaPDF = (salida: Salida, nombreEmpresa: string = 'Inven
   }
   
   doc.setFontSize(8)
-  doc.text(`Fecha: ${new Date(salida.fechaSalida).toLocaleDateString('es-GT', { timeZone: 'America/Guatemala' })}`, margin, y)
+  doc.text(`Fecha: ${new Date(salida.fechaSalida).toLocaleDateString('es-GT', { timeZone: 'UTC' })}`, margin, y)
   y += 4
   doc.text(`Ticket: ${salida.numeroSalida}`, margin, y)
   y += 4
@@ -442,7 +442,7 @@ export const generarFacturaPDF = (salida: Salida, nombreEmpresa: string = 'Inven
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.text(`No. Documento: ${salida.numeroSalida}`, 200, 28, { align: 'right' })
-  doc.text(`Fecha: ${new Date(salida.fechaSalida).toLocaleDateString('es-GT', { timeZone: 'America/Guatemala' })}`, 200, 33, { align: 'right' })
+  doc.text(`Fecha: ${new Date(salida.fechaSalida).toLocaleDateString('es-GT', { timeZone: 'UTC' })}`, 200, 33, { align: 'right' })
   doc.text(`Estado: ${salida.estado}`, 200, 38, { align: 'right' })
 
   // --- DATOS CLIENTE ---

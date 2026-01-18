@@ -78,7 +78,7 @@ export function ExitsTable() {
       year: 'numeric', 
       month: 'short', 
       day: 'numeric',
-      timeZone: 'America/Guatemala' // ZONA GT
+      timeZone: 'UTC' // UTC para evitar el desfase de dia (T00:00-06:00 = dia anterior)
     })
   }
 
