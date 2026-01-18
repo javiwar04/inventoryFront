@@ -118,7 +118,7 @@ export function SalesReportTab() {
 
   const handleExportExcel = () => {
     const data = filteredSales.map(s => ({
-        Fecha: new Date(s.fechaSalida).toLocaleDateString(),
+        Fecha: new Date(s.fechaSalida).toLocaleDateString('es-GT', { timeZone: 'America/Guatemala' }),
         Ticket: s.numeroSalida,
         Cliente: s.cliente || 'Consumidor Final',
         Hotel: s.destino || 'N/A',
@@ -267,7 +267,7 @@ export function SalesReportTab() {
                     ) : (
                         filteredSales.map((sale) => (
                             <TableRow key={sale.id}>
-                                <TableCell>{new Date(sale.fechaSalida).toLocaleDateString()}</TableCell>
+                                <TableCell>{new Date(sale.fechaSalida).toLocaleDateString('es-GT', { timeZone: 'America/Guatemala' })}</TableCell>
                                 <TableCell className="font-mono text-xs">{sale.numeroSalida}</TableCell>
                                 <TableCell>{sale.destino}</TableCell>
                                 <TableCell>{sale.cliente || 'CF'}</TableCell>
