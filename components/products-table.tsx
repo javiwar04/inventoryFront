@@ -18,7 +18,7 @@ import { ProductDialog } from "@/components/product-dialog"
 import { ProductDetailsDialog } from "@/components/product-details-dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
-import { productosService, type Producto, registrarAuditoria, inventarioService } from "@/lib/api"
+import { productosService, type Producto, registrarAuditoria, inventarioService, categoriasService } from "@/lib/api"
 
 interface ProductsTableProps { 
   search?: string 
@@ -36,6 +36,16 @@ export function ProductsTable({ search, categoryFilter, supplierFilter, stockFil
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [hotelStocks, setHotelStocks] = useState<Record<number, number>>({})
+  const [categories, setCategories] = useState<Record<number, string>>({})
+
+  useEffect(() => {
+    // Cargar categorías para mapear nombres si el backend no lo envía
+    categoriasService.getAll().then(cats => {
+        const map: Record<number, string> = {}
+        cats.forEach(c => map[c.id] = c.nombre)
+        setCategories(map)
+    }).catch(console.error)
+  }, [])
 
   useEffect(() => {
     if (hotelFilter && hotelFilter !== "all") {
@@ -215,11 +225,13 @@ export function ProductsTable({ search, categoryFilter, supplierFilter, stockFil
           {!loading && visibleProducts.map((product) => {
             const currentStock = (hotelFilter && hotelFilter !== "all") ? (hotelStocks[product.id] || 0) : product.stock_actual
             const status = getStockStatus(currentStock, product.stock_minimo)
+            const catName = product.categoria?.nombre || categories[product.categoria_id] || '-'
+
             return (
               <TableRow key={product.id}>
                 <TableCell className="font-mono text-sm">{product.sku}</TableCell>
                 <TableCell className="font-medium">{product.nombre}</TableCell>
-                <TableCell>{product.categoria?.nombre || '-'}</TableCell>
+                <TableCell>{catName}</TableCell>
                 <TableCell className="text-right">
                   <span className={currentStock < product.stock_minimo ? "text-destructive font-semibold" : ""}>
                     {currentStock}

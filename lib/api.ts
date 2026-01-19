@@ -1164,29 +1164,54 @@ export const reportesService = {
 // SERVICIO DE AUDITORÍA
 // ============================================================================
 
+const mapAuditoriumFromBackend = (a: any): Auditorium => ({
+  id: a.id || a.Id,
+  usuarioId: a.usuarioId || a.UsuarioId,
+  accion: a.accion || a.Accion,
+  modulo: a.modulo || a.Modulo,
+  tablaAfectada: a.tablaAfectada || a.TablaAfectada,
+  registroId: a.registroId || a.RegistroId,
+  descripcion: a.descripcion || a.Descripcion,
+  detalles: a.detalles || a.Detalles,
+  ipAddress: a.ipAddress || a.IpAddress,
+  userAgent: a.userAgent || a.UserAgent,
+  fechaHora: a.fechaHora || a.FechaHora,
+  usuario: a.usuario || a.Usuario,
+  usuarioNombre: a.usuarioNombre || a.UsuarioNombre
+})
+
 export const auditoriaService = {
   // GET /api/auditoria/recientes?max=50
   async getRecientes(max: number = 50): Promise<Auditorium[]> {
     const response = await api.get(`/auditoria/recientes?max=${max}`)
-    return response.data
+    if (Array.isArray(response.data)) {
+        return response.data.map(mapAuditoriumFromBackend)
+    }
+    return []
   },
 
   // GET /api/auditoria/usuario/{usuarioId}?max=30
   async getByUsuario(usuarioId: number, max: number = 30): Promise<Auditorium[]> {
     const response = await api.get(`/auditoria/usuario/${usuarioId}?max=${max}`)
-    return response.data
+    if (Array.isArray(response.data)) {
+        return response.data.map(mapAuditoriumFromBackend)
+    }
+    return []
   },
 
   // GET /api/auditoria/modulo/{modulo}?max=100
   async getByModulo(modulo: string, max: number = 100): Promise<Auditorium[]> {
     const response = await api.get(`/auditoria/modulo/${modulo}?max=${max}`)
-    return response.data
+     if (Array.isArray(response.data)) {
+        return response.data.map(mapAuditoriumFromBackend)
+    }
+    return []
   },
 
   // POST /api/auditoria
   async registrar(audit: Partial<Auditorium>): Promise<Auditorium> {
     const response = await api.post('/auditoria', audit)
-    return response.data
+    return mapAuditoriumFromBackend(response.data)
   }
 }
 

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DateRangePicker } from "@/components/date-range-picker"
 import { salidasService, proveedoresService, Salida } from "@/lib/api"
-import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye } from "lucide-react"
+import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye, ChevronLeft, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 import { DateRange } from "react-day-picker"
 import * as XLSX from 'xlsx'
@@ -30,6 +30,8 @@ export function SalesReportTab() {
   const [selectedHotel, setSelectedHotel] = useState<string>("all")
   const [selectedPayment, setSelectedPayment] = useState<string>("all")
   const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   useEffect(() => {
     loadData()
@@ -105,6 +107,7 @@ export function SalesReportTab() {
     result.sort((a, b) => new Date(b.fechaSalida).getTime() - new Date(a.fechaSalida).getTime())
 
     setFilteredSales(result)
+    setCurrentPage(1)
   }
 
   // Stats Calculation
@@ -134,7 +137,12 @@ export function SalesReportTab() {
     XLSX.writeFile(wb, `Reporte_Ventas_${new Date().toISOString().split('T')[0]}.xlsx`)
     toast.success("Reporte Exportado")
   }
+// Pagination Logic
+  const totalPages = Math.ceil(filteredSales.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const paginatedSales = filteredSales.slice(startIndex, startIndex + itemsPerPage)
 
+  
   return (
     <div className="space-y-6">
         
@@ -265,7 +273,7 @@ export function SalesReportTab() {
                             </TableCell>
                         </TableRow>
                     ) : (
-                        filteredSales.map((sale) => (
+                        paginatedSales.map((sale) => (
                             <TableRow key={sale.id}>
                                 <TableCell>{new Date(sale.fechaSalida).toLocaleDateString('es-GT', { timeZone: 'UTC' })}</TableCell>
                                 <TableCell className="font-mono text-xs">{sale.numeroSalida}</TableCell>
@@ -291,6 +299,36 @@ export function SalesReportTab() {
                     )}
                 </TableBody>
             </Table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+                Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, filteredSales.length)} de {filteredSales.length} ventas
+            </p>
+            <div className="flex items-center space-x-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                    Anterior
+                </Button>
+                <div className="text-sm font-medium">
+                    Página {currentPage} de {Math.max(1, totalPages)}
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                >
+                    Siguiente
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
         </div>
 
         <Dialog open={!!previewUrl} onOpenChange={(open) => !open && setPreviewUrl(null)}>
