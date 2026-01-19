@@ -66,12 +66,19 @@ export function SalesReportTab() {
 
     // Date Range
     if (dateRange?.from) {
-        const from = new Date(dateRange.from).setHours(0,0,0,0)
-        result = result.filter(s => new Date(s.fechaSalida).getTime() >= from)
+        const fromStr = dateRange.from.toLocaleDateString('en-CA');
+        result = result.filter(s => {
+            if (!s.fechaSalida) return false;
+            // Compare YYYY-MM-DD part only
+            return s.fechaSalida.split('T')[0] >= fromStr;
+        })
     }
     if (dateRange?.to) {
-        const to = new Date(dateRange.to).setHours(23,59,59,999)
-        result = result.filter(s => new Date(s.fechaSalida).getTime() <= to)
+        const toStr = dateRange.to.toLocaleDateString('en-CA');
+        result = result.filter(s => {
+            if (!s.fechaSalida) return false;
+            return s.fechaSalida.split('T')[0] <= toStr;
+        })
     }
 
     // Hotel (Destino)
@@ -121,7 +128,7 @@ export function SalesReportTab() {
 
   const handleExportExcel = () => {
     const data = filteredSales.map(s => ({
-        Fecha: new Date(s.fechaSalida).toLocaleDateString('es-GT', { timeZone: 'UTC' }),
+        Fecha: s.fechaSalida ? s.fechaSalida.split('T')[0].split('-').reverse().join('/') : '',
         Ticket: s.numeroSalida,
         Cliente: s.cliente || 'Consumidor Final',
         Hotel: s.destino || 'N/A',
@@ -275,7 +282,13 @@ export function SalesReportTab() {
                     ) : (
                         paginatedSales.map((sale) => (
                             <TableRow key={sale.id}>
-                                <TableCell>{new Date(sale.fechaSalida).toLocaleDateString('es-GT', { timeZone: 'America/Guatemala', day: '2-digit', month: '2-digit', year: 'numeric' })}</TableCell>
+                                <TableCell>
+                                    {sale.fechaSalida ? (() => {
+                                        const datePart = sale.fechaSalida.split('T')[0];
+                                        const [year, month, day] = datePart.split('-');
+                                        return `${day}/${month}/${year}`;
+                                    })() : ''}
+                                </TableCell>
                                 <TableCell className="font-mono text-xs">{sale.numeroSalida}</TableCell>
                                 <TableCell>{sale.destino}</TableCell>
                                 <TableCell>{sale.cliente || 'CF'}</TableCell>
