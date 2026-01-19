@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DateRangePicker } from "@/components/date-range-picker"
 import { salidasService, proveedoresService, Salida } from "@/lib/api"
-import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye, ChevronLeft, ChevronRight, Banknote } from "lucide-react"
 import { toast } from "sonner"
 import { DateRange } from "react-day-picker"
 import * as XLSX from 'xlsx'
@@ -226,7 +226,7 @@ export function SalesReportTab() {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Efectivo</CardTitle>
-                    <BanknoteIcon className="h-4 w-4 text-muted-foreground" />
+                    <Banknote className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-emerald-600">Q{totalEfectivo.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</div>
@@ -275,7 +275,7 @@ export function SalesReportTab() {
                     ) : (
                         paginatedSales.map((sale) => (
                             <TableRow key={sale.id}>
-                                <TableCell>{new Date(sale.fechaSalida).toLocaleDateString('es-GT', { timeZone: 'UTC' })}</TableCell>
+                                <TableCell>{new Date(sale.fechaSalida).toLocaleDateString('es-GT', { timeZone: 'America/Guatemala', day: '2-digit', month: '2-digit', year: 'numeric' })}</TableCell>
                                 <TableCell className="font-mono text-xs">{sale.numeroSalida}</TableCell>
                                 <TableCell>{sale.destino}</TableCell>
                                 <TableCell>{sale.cliente || 'CF'}</TableCell>

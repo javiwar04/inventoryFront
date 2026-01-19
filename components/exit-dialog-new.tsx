@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import { salidasService, productosService, proveedoresService, registrarAuditoria, inventarioService, Salida } from "@/lib/api"
 import { generarFacturaPDF } from "@/lib/export-utils"
 import { useAuth } from "@/contexts/auth-context"
+import { getGuatemalaDate, getGuatemalaDateTime } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface DetalleTemp {
@@ -40,7 +41,7 @@ export function ExitDialogNew() {
 
   // Header Fields
   const [numeroSalida, setNumeroSalida] = useState('')
-  const [fechaSalida, setFechaSalida] = useState(new Date().toISOString().split('T')[0])
+  const [fechaSalida, setFechaSalida] = useState(getGuatemalaDate())
   const [metodoPago, setMetodoPago] = useState('Efectivo Quetzales')
   const [hotelId, setHotelId] = useState('') // This maps to Destino
   const [nomCliente, setNomCliente] = useState('Consumidor Final') // This maps to Cliente
@@ -199,9 +200,18 @@ export function ExitDialogNew() {
         const total = getTotalVenta()
         const selectedHotel = hoteles.find(h => h.id.toString() === hotelId)?.nombre || 'Tienda Principal'
         
+        // Adjust date to Guatemala time
+        let finalFecha = fechaSalida;
+        if (fechaSalida === getGuatemalaDate()) {
+            finalFecha = getGuatemalaDateTime();
+        } else {
+             // For past dates, default to noon to avoid date shifting
+            finalFecha = `${fechaSalida}T12:00:00`;
+        }
+
         const payload = {
             NumeroSalida: numeroSalida,
-            FechaSalida: fechaSalida,
+            FechaSalida: finalFecha,
             Motivo: 'Venta',
             Destino: selectedHotel,
             Referencia: referencia,
