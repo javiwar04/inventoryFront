@@ -49,8 +49,8 @@ export function SalesReportTab() {
         proveedoresService.getAll()
       ])
       // Filter exits that are "Ventas" (Assuming all sales created via POS have a specific nature or we just show all Salidas)
-      // The POS sets 'Motivo' = 'Venta'.
-      const ventas = sales.filter(s => s.motivo === 'Venta')
+      // The POS sets 'Motivo' = 'Venta' OR 'Cortesía'.
+      const ventas = sales.filter(s => s.motivo === 'Venta' || s.motivo === 'Cortesía')
       setAllSales(ventas)
       setHoteles(provs.filter(p => p.estado === 'Activo'))
     } catch (err) {
