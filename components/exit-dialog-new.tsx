@@ -200,18 +200,9 @@ export function ExitDialogNew() {
         const total = getTotalVenta()
         const selectedHotel = hoteles.find(h => h.id.toString() === hotelId)?.nombre || 'Tienda Principal'
         
-        // Adjust date to Guatemala time
-        let finalFecha = fechaSalida;
-        if (fechaSalida === getGuatemalaDate()) {
-            finalFecha = getGuatemalaDateTime();
-        } else {
-             // For past dates, default to noon to avoid date shifting
-            finalFecha = `${fechaSalida}T12:00:00`;
-        }
-
         const payload = {
             NumeroSalida: numeroSalida,
-            FechaSalida: finalFecha,
+            FechaSalida: fechaSalida,
             Motivo: 'Venta',
             Destino: selectedHotel,
             Referencia: referencia,
