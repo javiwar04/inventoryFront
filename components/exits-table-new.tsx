@@ -123,7 +123,9 @@ export function ExitsTable() {
                 <TableRow key={salida.id}>
                   <TableCell className="font-mono font-semibold">{salida.numeroSalida}</TableCell>
                   <TableCell>{formatDate(salida.fechaSalida)}</TableCell>
-                  <TableCell>{salida.motivo}</TableCell>
+                  <TableCell>
+                    {(salida.metodoPago === 'Cortesía' || salida.metodoPago?.includes('Cortes')) ? 'Cortesía' : salida.motivo}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{salida.destino || '-'}</TableCell>
                   <TableCell>
                     <Badge variant="outline">

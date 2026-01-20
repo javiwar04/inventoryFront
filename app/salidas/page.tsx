@@ -83,7 +83,7 @@ export default function ExitsPage() {
       const rows = salidas.map(salida => [
         salida.numeroSalida || '',
         new Date(salida.fechaSalida).toLocaleDateString('es-GT'),
-        salida.motivo || '',
+        (salida.metodoPago === 'Cortesía' || salida.metodoPago?.includes('Cortes')) ? 'Cortesía' : (salida.motivo || ''),
         salida.destino || '',
         (salida.detalleSalida?.length || (salida as any).DetalleSalida?.length || 0).toString(),
         salida.estado || ''
