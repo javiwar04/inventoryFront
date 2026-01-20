@@ -6,12 +6,18 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function getGuatemalaDate(): string {
-  return new Intl.DateTimeFormat('en-CA', {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Guatemala',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(new Date());
+  });
+  
+  const parts = formatter.formatToParts(new Date());
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+  
+  // Ensure YYYY-MM-DD format strictly
+  return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
 }
 
 export function getGuatemalaDateTime(): string {

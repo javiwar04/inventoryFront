@@ -202,8 +202,9 @@ export function ExitDialogNew() {
         
         const payload = {
             NumeroSalida: numeroSalida,
-            FechaSalida: fechaSalida,
-            Motivo: 'Venta',
+            // Ensure we strictly send YYYY-MM-DD to avoid backend DateOnly validation error
+            FechaSalida: fechaSalida?.split('T')[0] || getGuatemalaDate(),
+            Motivo: metodoPago === 'Cortesía' ? 'Cortesía' : 'Venta',
             Destino: selectedHotel,
             Referencia: referencia,
             Observaciones: observaciones,
