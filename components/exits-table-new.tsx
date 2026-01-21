@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, Eye, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { salidasService, type Salida, registrarAuditoria } from "@/lib/api"
+import { salidasService, type Salida, registrarAuditoria, proveedoresService } from "@/lib/api"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { ExitDetailDialog } from "@/components/exit-detail-dialog"
 import { useAuth } from "@/contexts/auth-context"
@@ -36,7 +36,27 @@ export function ExitsTable() {
       // Si es empleado, filtrar solo sus salidas (Lógica de Hotel/Sucursal por Usuario)
       let filteredData = data
       if (user?.rol === 'empleado' && user.id) {
-        filteredData = data.filter(item => item.creadoPor === user.id)
+        if (user.sedeId && user.sedeId !== 0) {
+            // Si tiene sede asignada, intentamos filtrar por Destino = Nombre Sede
+            try {
+                // TODO: Idealmente esto debería venir del backend o estar en el contexto
+                const proveedores = await proveedoresService.getAll()
+                const miSede = proveedores.find(p => p.id === user.sedeId)
+                if (miSede) {
+                    const nombreSede = miSede.nombre.trim().toLowerCase()
+                    filteredData = data.filter(item => 
+                        (item.destino?.trim().toLowerCase() === nombreSede) || (item.creadoPor === user.id)
+                    )
+                } else {
+                    filteredData = data.filter(item => item.creadoPor === user.id)
+                }
+            } catch (error) {
+                console.error('Error al filtrar por sede:', error)
+                filteredData = data.filter(item => item.creadoPor === user.id)
+            }
+        } else {
+            filteredData = data.filter(item => item.creadoPor === user.id)
+        }
       }
 
       console.log('=== SALIDAS CARGADAS ===', filteredData) // Debug

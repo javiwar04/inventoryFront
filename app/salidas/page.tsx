@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Search, Download, Calendar, TrendingDown, Package, Loader2 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { usePermissions } from "@/hooks/use-permissions"
-import { salidasService } from "@/lib/api"
+import { salidasService, proveedoresService } from "@/lib/api"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -47,7 +47,25 @@ export default function ExitsPage() {
       // FILTRAR SI ES EMPLEADO (HOTEL)
       let salidasFiltradas = salidas
       if (user?.rol === 'empleado' && user.id) {
-        salidasFiltradas = salidas.filter(s => s.creadoPor === user.id)
+        if (user.sedeId && user.sedeId !== 0) {
+            try {
+                const proveedores = await proveedoresService.getAll()
+                const miSede = proveedores.find(p => p.id === user.sedeId)
+                if (miSede) {
+                    const nombreSede = miSede.nombre.trim().toLowerCase()
+                    salidasFiltradas = salidas.filter(item => 
+                        (item.destino?.trim().toLowerCase() === nombreSede) || (item.creadoPor === user.id)
+                    )
+                } else {
+                    salidasFiltradas = salidas.filter(s => s.creadoPor === user.id)
+                }
+            } catch (error) {
+                console.error('Error filtrando stats por sede:', error)
+                salidasFiltradas = salidas.filter(s => s.creadoPor === user.id)
+            }
+        } else {
+            salidasFiltradas = salidas.filter(s => s.creadoPor === user.id)
+        }
       }
 
       const now = new Date()
