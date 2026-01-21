@@ -58,14 +58,14 @@ export default function ExitsPage() {
       )
 
       const productosDespachados = salidasMes.reduce((sum, s) => 
-        sum + (s.detalleSalida?.length || (s as any).DetalleSalida?.length || 0), 0
+        sum + (s.detalles?.reduce((acc, d) => acc + d.cantidad, 0) || s.detalleSalida?.reduce((acc, d) => acc + d.cantidad, 0) || 0), 0
       )
 
       setStats({
         salidasMes: salidasMes.length,
         productosDespachados,
         productosCount: salidasFiltradas.reduce((sum, s) => 
-          sum + (s.detalleSalida?.length || (s as any).DetalleSalida?.length || 0), 0
+          sum + (s.detalles?.reduce((acc, d) => acc + d.cantidad, 0) || s.detalleSalida?.reduce((acc, d) => acc + d.cantidad, 0) || 0), 0
         )
       })
     } catch (err) {
@@ -85,7 +85,7 @@ export default function ExitsPage() {
         new Date(salida.fechaSalida).toLocaleDateString('es-GT'),
         (salida.metodoPago === 'Cortesía' || salida.metodoPago?.includes('Cortes')) ? 'Cortesía' : (salida.motivo || ''),
         salida.destino || '',
-        (salida.detalleSalida?.length || (salida as any).DetalleSalida?.length || 0).toString(),
+        (salida.detalles?.length || salida.detalleSalida?.length || (salida as any).DetalleSalida?.length || 0).toString(),
         salida.estado || ''
       ])
       

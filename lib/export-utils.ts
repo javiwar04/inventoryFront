@@ -347,9 +347,10 @@ export const generarComandaPDF = (salida: Salida, nombreEmpresa: string = 'Inven
   y += 4
   doc.setFont('helvetica', 'normal')
 
+  const detalles = salida.detalles || salida.detalleSalida || []
   let granTotal = 0
 
-  salida.detalleSalida?.forEach(detalle => {
+  detalles.forEach(detalle => {
       const nombreProducto = typeof detalle.producto === 'string' ? detalle.producto : (detalle.producto?.nombre || 'Producto')
       // Truncar nombre si muy largo
       const cleanName = nombreProducto.length > 20 ? nombreProducto.substring(0, 20) + '..' : nombreProducto
@@ -468,7 +469,9 @@ export const generarFacturaPDF = (salida: Salida, nombreEmpresa: string = 'Inven
   let startY = salida.observaciones ? 75 : 70
   let granTotal = 0
 
-  const tableRows = salida.detalleSalida?.map(detalle => {
+  const detalles = salida.detalles || salida.detalleSalida || []
+
+  const tableRows = detalles.map(detalle => {
     const nombre = typeof detalle.producto === 'string' ? detalle.producto : (detalle.producto?.nombre || 'Producto')
     const precio = detalle.precioUnitario || 0
     // Si no hay subtotal guardado, calcularlo

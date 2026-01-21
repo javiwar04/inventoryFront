@@ -134,7 +134,7 @@ export function SalesReportTab() {
         Hotel: s.destino || 'N/A',
         MetodoPago: s.metodoPago || 'N/A',
         Total: s.total || 0,
-        Items: s.detalleSalida?.length || 0,
+        Items: s.detalles?.length || s.detalleSalida?.length || 0,
         Observaciones: s.observaciones || ''
     }))
 

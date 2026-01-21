@@ -64,7 +64,7 @@ export default function EntriesPage() {
 
       // Totales Históricos (del usuario/hotel)
       const productosIngresados = entradasFiltradas.reduce((sum, e) => 
-        sum + (e.detalleEntrada?.length || (e as any).DetalleEntrada?.length || 0), 0
+        sum + (e.detalles?.reduce((acc: number, d) => acc + d.cantidad, 0) || e.detalleEntrada?.reduce((acc: number, d) => acc + d.cantidad, 0) || (e as any).DetalleEntrada?.length || 0), 0
       )
 
       const inversionTotal = entradasFiltradas.reduce((sum, e) => 
@@ -93,7 +93,7 @@ export default function EntriesPage() {
         new Date(e.fechaEntrada).toLocaleDateString('es-GT'),
         typeof e.proveedor === 'string' ? e.proveedor : (e.proveedor?.nombre || 'N/A'),
         e.numeroFactura || 'N/A',
-        e.detalleEntrada?.length || 0,
+        (e.detalles?.length || e.detalleEntrada?.length || 0).toString(),
         `Q${(e.total || 0).toFixed(2)}`,
         e.estado || 'completada'
       ])
