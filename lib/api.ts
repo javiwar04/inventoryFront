@@ -888,9 +888,10 @@ export const reportesService = {
     
     // Calcular rotación promedio (salidas / stock promedio)
     const productosConMovimiento = productos.filter(p => p.stock_actual > 0)
-    const totalSalidas = salidasFiltradas.reduce((sum, s) => 
-      sum + (s.detalleSalida?.reduce((dSum, d) => dSum + d.cantidad, 0) || 0), 0
-    )
+    const totalSalidas = salidasFiltradas.reduce((sum, s) => {
+      const details = s.detalles || s.detalleSalida || []
+      return sum + details.reduce((dSum, d) => dSum + d.cantidad, 0)
+    }, 0)
     const stockPromedio = productosConMovimiento.reduce((sum, p) => sum + p.stock_actual, 0) / (productosConMovimiento.length || 1)
     const rotacionPromedio = stockPromedio > 0 ? totalSalidas / stockPromedio : 0
 
@@ -982,12 +983,20 @@ export const reportesService = {
          for (const producto of productos) {
             // Entradas acumuladas hasta fin de ESTE mes
             const qEntradas = entradasAll
-                .filter(e => new Date(e.fechaEntrada) <= finMes && e.detalleEntrada?.some(d => d.productoId === producto.id))
-                .reduce((sum, e) => sum + (e.detalleEntrada?.find(d => d.productoId === producto.id)?.cantidad || 0), 0)
+                .filter(e => new Date(e.fechaEntrada) <= finMes)
+                .reduce((sum, e) => {
+                  const details = e.detalles || e.detalleEntrada || []
+                  const item = details.find(d => d.productoId === producto.id)
+                  return sum + (item?.cantidad || 0)
+                }, 0)
 
             const qSalidas = salidasAll
-                .filter(s => new Date(s.fechaSalida) <= finMes && s.detalleSalida?.some(d => d.productoId === producto.id))
-                .reduce((sum, s) => sum + (s.detalleSalida?.find(d => d.productoId === producto.id)?.cantidad || 0), 0)
+                .filter(s => new Date(s.fechaSalida) <= finMes)
+                .reduce((sum, s) => {
+                  const details = s.detalles || s.detalleSalida || []
+                  const item = details.find(d => d.productoId === producto.id)
+                  return sum + (item?.cantidad || 0)
+                }, 0)
             
             const stockEstimado = Math.max(0, qEntradas - qSalidas)
             // Use current cost as approximation
@@ -1030,7 +1039,7 @@ export const reportesService = {
     const productosStats = productos.map(producto => {
       // Contar entradas del producto
       const totalEntradas = entradas.reduce((sum, e) => {
-        const detalles = e.detalleEntrada || []
+        const detalles = e.detalles || e.detalleEntrada || []
         const cantidadProducto = detalles
           .filter(d => d.productoId === producto.id)
           .reduce((dSum, d) => dSum + d.cantidad, 0)
@@ -1039,7 +1048,7 @@ export const reportesService = {
 
       // Contar salidas del producto
       const totalSalidas = salidas.reduce((sum, s) => {
-        const detalles = s.detalleSalida || []
+        const detalles = s.detalles || s.detalleSalida || []
         const cantidadProducto = detalles
           .filter(d => d.productoId === producto.id)
           .reduce((dSum, d) => dSum + d.cantidad, 0)
@@ -1139,7 +1148,8 @@ export const reportesService = {
         const fechaSalida = new Date(s.fechaSalida)
         if (fechaSalida >= mesInicio && fechaSalida <= mesFin) {
            // Sumar items individuales del detalle
-           const itemsVendidos = s.detalleSalida?.reduce((isum, d) => isum + (d.cantidad || 0), 0) || 0
+           const details = s.detalles || s.detalleSalida || []
+           const itemsVendidos = details.reduce((isum, d) => isum + (d.cantidad || 0), 0)
            return sum + itemsVendidos
         }
         return sum
@@ -1149,7 +1159,8 @@ export const reportesService = {
       const totalEntradas = entradas.reduce((sum, e) => {
         const fechaEntrada = new Date(e.fechaEntrada)
         if (fechaEntrada >= mesInicio && fechaEntrada <= mesFin) {
-            const itemsEntrados = e.detalleEntrada?.reduce((isum, d) => isum + (d.cantidad || 0), 0) || 0
+            const details = e.detalles || e.detalleEntrada || []
+            const itemsEntrados = details.reduce((isum, d) => isum + (d.cantidad || 0), 0)
             return sum + itemsEntrados
         }
         return sum

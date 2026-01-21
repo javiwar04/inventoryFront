@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Trash2, PackageMinus, Loader2, CreditCard, Banknote, Gift, User, Store, Printer } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Plus, Trash2, PackageMinus, Loader2, CreditCard, Banknote, Gift, User, Store, Printer, Wallet } from "lucide-react"
 import { toast } from "sonner"
 import { salidasService, productosService, proveedoresService, registrarAuditoria, inventarioService, Salida } from "@/lib/api"
 import { generarFacturaPDF } from "@/lib/export-utils"
@@ -52,6 +53,12 @@ export function ExitDialogNew() {
   const [selectedProducto, setSelectedProducto] = useState('')
   const [cantidad, setCantidad] = useState('')
   const [lote, setLote] = useState('')
+
+  // Split Payment State
+  const [isPagoDividido, setIsPagoDividido] = useState(false)
+  const [pagos, setPagos] = useState<{metodo: string, monto: number}[]>([])
+  const [montoPagoParcial, setMontoPagoParcial] = useState('')
+  const [metodoPagoParcial, setMetodoPagoParcial] = useState('Efectivo Quetzales')
 
   useEffect(() => {
     if (open) {
@@ -185,9 +192,45 @@ export function ExitDialogNew() {
 
   const getTotalVenta = () => detalles.reduce((sum, d) => sum + d.subtotal, 0)
 
+  // Payment Logic
+  const agregarPago = () => {
+    const monto = Number(montoPagoParcial)
+    if (monto <= 0) return toast.error("Monto inválido")
+    
+    // Check coverage
+    const totalVenta = getTotalVenta()
+    const totalPagado = pagos.reduce((sum, p) => sum + p.monto, 0)
+    
+    // Warn if overpaying (allow it? usually systems block or calculate change, let's just warn for now or block extreme)
+    if (totalPagado + monto > totalVenta + 0.5) { 
+         // Optional: toast.warning("El monto supera el total")
+    }
+
+    setPagos([...pagos, { metodo: metodoPagoParcial, monto }])
+    setMontoPagoParcial('')
+    // Si ya cubrió el resto, limpiar o enfocar?
+  }
+
+  const eliminarPago = (idx: number) => {
+    setPagos(pagos.filter((_, i) => i !== idx))
+  }
+  
+  const getFaltantePago = () => {
+      const total = getTotalVenta()
+      const pagado = pagos.reduce((sum, p) => sum + p.monto, 0)
+      return Math.max(0, total - pagado)
+  }
+
+  // Effect to auto-set remaining amount when method changes or opening
+  useEffect(() => {
+     if (isPagoDividido) {
+         setMontoPagoParcial(getFaltantePago().toFixed(2))
+     }
+  }, [detalles, pagos, isPagoDividido])
+
   const handleSubmit = async (printTicket: boolean = false) => {
-    if (!numeroSalida || !fechaSalida || !metodoPago || !hotelId) {
-        toast.error('Faltan campos obligatorios', { description: 'Verifica Hotel, Cliente y Método de Pago' })
+    if (!numeroSalida || !fechaSalida || !hotelId) {
+        toast.error('Faltan campos obligatorios', { description: 'Verifica Hotel/Cliente' })
         return
     }
     if (detalles.length === 0) {
@@ -195,23 +238,39 @@ export function ExitDialogNew() {
         return
     }
 
+    let finalMetodoPago = metodoPago
+    const total = getTotalVenta()
+
+    if (isPagoDividido) {
+        const totalPagado = pagos.reduce((sum, p) => sum + p.monto, 0)
+        if (Math.abs(totalPagado - total) > 0.1) {
+             toast.error(`Pagos incompletos`, { description: `Faltan Q${(total - totalPagado).toFixed(2)} por cubrir` })
+             return
+        }
+        finalMetodoPago = pagos.map(p => `${p.metodo}: Q${p.monto.toFixed(2)}`).join(' | ')
+    } else {
+        if (!metodoPago) {
+            toast.error('Selecciona un método de pago')
+            return
+        }
+    }
+
     setSaving(true)
     try {
-        const total = getTotalVenta()
         const selectedHotel = hoteles.find(h => h.id.toString() === hotelId)?.nombre || 'Tienda Principal'
         
         const payload = {
             NumeroSalida: numeroSalida,
             // Ensure we strictly send YYYY-MM-DD to avoid backend DateOnly validation error
             FechaSalida: fechaSalida?.split('T')[0] || getGuatemalaDate(),
-            Motivo: (metodoPago === 'Cortesía' || metodoPago.includes('Cortes') || metodoPago.includes('cortes')) ? 'Cortesía' : 'Venta',
+            Motivo: (finalMetodoPago.includes('Cortesía') || finalMetodoPago.includes('cortes')) ? 'Cortesía' : 'Venta',
             Destino: selectedHotel,
             Referencia: referencia,
             Observaciones: observaciones,
             Estado: 'completada',
             CreadoPor: user?.id || 1,
             Total: total,
-            MetodoPago: metodoPago,
+            MetodoPago: finalMetodoPago,
             Cliente: nomCliente,
             Detalles: detalles.map(d => ({
                 ProductoId: d.productoId,
@@ -248,9 +307,9 @@ export function ExitDialogNew() {
                 estado: 'completada',
                 fechaCreacion: new Date().toISOString(),
                 total: total,
-                metodoPago: metodoPago,
+                metodoPago: finalMetodoPago,
                 cliente: nomCliente,
-                detalleSalida: detalles.map((d, index) => ({
+                detalles: detalles.map((d, index) => ({
                     id: index,
                     salidaId: created.id,
                     productoId: d.productoId,
@@ -284,6 +343,8 @@ export function ExitDialogNew() {
     setReferencia('')
     setSelectedProducto('')
     setCantidad('')
+    setPagos([])
+    setIsPagoDividido(false)
   }
 
   return (
@@ -320,20 +381,73 @@ export function ExitDialogNew() {
             {/* Formulario Principal */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-muted/10 rounded-xl border">
                 
-                <div className="space-y-2">
-                    <Label className="flex items-center gap-2"><CreditCard className="h-4 w-4"/> Método de Pago</Label>
-                    <Select value={metodoPago} onValueChange={setMetodoPago}>
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Efectivo Quetzales">Efectivo Quetzales</SelectItem>
-                            <SelectItem value="Efectivo Dólares">Efectivo Dólares</SelectItem>
-                            <SelectItem value="Tarjeta">Tarjeta</SelectItem>
-                            <SelectItem value="Transferencia">Transferencia</SelectItem>
-                            <SelectItem value="Cortesía">Cortesía / Regalo</SelectItem>
-                        </SelectContent>
-                    </Select>
+                <div className="space-y-2 md:col-span-1">
+                    <div className="flex items-center justify-between mb-2">
+                        <Label className="flex items-center gap-2"><CreditCard className="h-4 w-4"/> Pago</Label>
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="split-payment" className="text-xs cursor-pointer">Dividido</Label>
+                            <Switch id="split-payment" checked={isPagoDividido} onCheckedChange={setIsPagoDividido} />
+                        </div>
+                    </div>
+
+                    {!isPagoDividido ? (
+                        <Select value={metodoPago} onValueChange={setMetodoPago}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Efectivo Quetzales">Efectivo Quetzales</SelectItem>
+                                <SelectItem value="Efectivo Dólares">Efectivo Dólares</SelectItem>
+                                <SelectItem value="Tarjeta">Tarjeta</SelectItem>
+                                <SelectItem value="Transferencia">Transferencia</SelectItem>
+                                <SelectItem value="Cortesía">Cortesía / Regalo</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    ) : (
+                        <div className="space-y-2 bg-background p-2 rounded-md border">
+                            <div className="flex gap-2 mb-1">
+                                <Select value={metodoPagoParcial} onValueChange={setMetodoPagoParcial}>
+                                    <SelectTrigger className="h-8 text-xs">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Efectivo Quetzales">Efec. Q</SelectItem>
+                                        <SelectItem value="Efectivo Dólares">Efec. $</SelectItem>
+                                        <SelectItem value="Tarjeta">Tarjeta</SelectItem>
+                                        <SelectItem value="Transferencia">Transf.</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Input 
+                                    className="h-8 w-16 text-xs" 
+                                    placeholder="Q" 
+                                    type="number"
+                                    value={montoPagoParcial}
+                                    onChange={e => setMontoPagoParcial(e.target.value)}
+                                />
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={agregarPago}>
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            
+                            {/* Lista de Pagos */}
+                            <div className="space-y-1 max-h-[60px] overflow-y-auto">
+                                {pagos.map((p, i) => (
+                                    <div key={i} className="flex justify-between items-center text-xs bg-muted/50 px-2 py-1 rounded">
+                                        <span>{p.metodo}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-mono">Q{p.monto.toFixed(2)}</span>
+                                            <Trash2 className="h-3 w-3 cursor-pointer text-red-500" onClick={() => eliminarPago(i)} />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                             {getFaltantePago() > 0 && (
+                                <div className="text-xs text-red-500 text-right font-bold mt-1">
+                                    Falta: Q{getFaltantePago().toFixed(2)}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-2">
