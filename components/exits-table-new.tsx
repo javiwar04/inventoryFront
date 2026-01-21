@@ -129,7 +129,7 @@ export function ExitsTable() {
                   <TableCell className="text-sm text-muted-foreground">{salida.destino || '-'}</TableCell>
                   <TableCell>
                     <Badge variant="outline">
-                      {(salida.detalleSalida?.length || (salida as any).DetalleSalida?.length || 0)} items
+                      {(salida.detalles?.length || salida.detalleSalida?.length || (salida as any).DetalleSalida?.length || 0)} items
                     </Badge>
                   </TableCell>
                   <TableCell>

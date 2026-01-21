@@ -78,27 +78,31 @@ export interface Entrada {
   id: number
   numeroEntrada: string
   fechaEntrada: string
-  proveedorId: number | null
-  proveedor: { id: number; nombre: string } | null
-  numeroFactura: string | null
+  proveedorId?: number | null
+  // Ahora puede venir como string (nombre) o como objeto (antiguo/byID)
+  proveedor: string | { id: number; nombre: string } | null
+  numeroFactura?: string | null
   total: number | null
-  observaciones: string | null
-  estado: string
-  fechaCreacion: string
-  creadoPor?: number | null // ID del usuario que creó el registro
-  detalleEntrada: DetalleEntrada[]
+  observaciones?: string | null
+  estado?: string
+  fechaCreacion?: string
+  creadoPor?: number | null
+  // Soporte para ambos nombres de propiedad
+  detalleEntrada?: DetalleEntrada[]
+  detalles?: DetalleEntrada[]
 }
 
 export interface DetalleEntrada {
-  id: number
-  entradaId: number
+  id?: number
+  entradaId?: number
   productoId: number
-  producto: { id: number; nombre: string; sku: string } | null
+  // Ahora puede venir como string (nombre) o objeto
+  producto: string | { id: number; nombre: string; sku: string } | null
   cantidad: number
   precioUnitario: number
   subtotal: number | null
   lote: string | null
-  fechaVencimiento: string | null
+  fechaVencimiento?: string | null
 }
 
 export interface Salida {
@@ -107,12 +111,14 @@ export interface Salida {
   fechaSalida: string
   motivo: string
   destino: string | null
-  referencia: string | null
+  referencia?: string | null
   observaciones: string | null
   estado: string
-  fechaCreacion: string
-  creadoPor?: number | null // ID del usuario que creó el registro
-  detalleSalida: DetalleSalida[]
+  fechaCreacion?: string
+  creadoPor?: number | null 
+  // Soporte para ambos
+  detalleSalida?: DetalleSalida[]
+  detalles?: DetalleSalida[]
   // Nuevos campos para POS/Ventas
   total?: number | null
   metodoPago?: string | null
@@ -120,10 +126,11 @@ export interface Salida {
 }
 
 export interface DetalleSalida {
-  id: number
-  salidaId: number
+  id?: number
+  salidaId?: number
   productoId: number
-  producto: { id: number; nombre: string; sku: string } | null
+  // Ahora puede venir como string (nombre) o objeto
+  producto: string | { id: number; nombre: string; sku: string } | null
   cantidad: number
   lote: string | null
   // Nuevos campos para detalle de ventas
@@ -798,13 +805,13 @@ export const statsService = {
         tipo: 'entrada',
         numero: e.numeroEntrada,
         fecha: e.fechaEntrada,
-        descripcion: `Entrada de ${e.proveedor?.nombre || 'Sin proveedor'}`,
+        descripcion: `Entrada de ${typeof e.proveedor === 'string' ? e.proveedor : e.proveedor?.nombre || 'Sin proveedor'}`,
         total: e.total,
-        estado: e.estado,
-        productos: (e.detalleEntrada || []).map(d => ({
+        estado: e.estado || 'N/A',
+        productos: (e.detalles || e.detalleEntrada || []).map(d => ({
           productoId: d.productoId,
-          nombre: d.producto?.nombre || (d.producto as any)?.Nombre || 'Desconocido',
-          sku: d.producto?.sku || (d.producto as any)?.SKU || '',
+          nombre: typeof d.producto === 'string' ? d.producto : (d.producto?.nombre || (d.producto as any)?.Nombre || 'Desconocido'),
+          sku: typeof d.producto === 'object' ? (d.producto?.sku || (d.producto as any)?.SKU || '') : '',
           cantidad: d.cantidad
         })),
       })),
@@ -815,11 +822,11 @@ export const statsService = {
         fecha: s.fechaSalida,
         descripcion: `Salida - ${s.motivo}`,
         destino: s.destino,
-        estado: s.estado,
-        productos: (s.detalleSalida || []).map(d => ({
+        estado: s.estado || 'N/A',
+        productos: (s.detalles || s.detalleSalida || []).map(d => ({
           productoId: d.productoId,
-          nombre: d.producto?.nombre || (d.producto as any)?.Nombre || 'Desconocido',
-          sku: d.producto?.sku || (d.producto as any)?.SKU || '',
+          nombre: typeof d.producto === 'string' ? d.producto : (d.producto?.nombre || (d.producto as any)?.Nombre || 'Desconocido'),
+          sku: typeof d.producto === 'object' ? (d.producto?.sku || (d.producto as any)?.SKU || '') : '',
           cantidad: d.cantidad
         })),
       }))

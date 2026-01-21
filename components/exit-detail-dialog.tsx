@@ -37,7 +37,7 @@ export function ExitDetailDialog({ salida, open, onOpenChange }: ExitDetailDialo
     })
   }
 
-  const detalles = salida.detalleSalida || (salida as any).DetalleSalida || []
+  const detalles = salida.detalles || salida.detalleSalida || (salida as any).DetalleSalida || []
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -143,10 +143,12 @@ export function ExitDetailDialog({ salida, open, onOpenChange }: ExitDetailDialo
                     detalles.map((detalle: any, index: number) => (
                       <TableRow key={detalle.id || index}>
                         <TableCell className="font-medium">
-                          {detalle.producto?.nombre || detalle.Producto?.Nombre || 'Producto desconocido'}
+                          {typeof detalle.producto === 'string' 
+                            ? detalle.producto 
+                            : (detalle.producto?.nombre || detalle.Producto || 'Producto desconocido')}
                         </TableCell>
                         <TableCell className="font-mono text-sm text-muted-foreground">
-                          {detalle.producto?.sku || detalle.Producto?.SKU || '-'}
+                          {typeof detalle.producto === 'object' ? (detalle.producto?.sku || detalle.Producto?.SKU || '-') : '-'}
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline">{detalle.cantidad}</Badge>
@@ -164,7 +166,7 @@ export function ExitDetailDialog({ salida, open, onOpenChange }: ExitDetailDialo
 
           {/* Fechas adicionales */}
           <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-            <p>Creado: {formatDate(salida.fechaCreacion)}</p>
+            <p>Creado: {salida.fechaCreacion ? formatDate(salida.fechaCreacion) : '-'}</p>
           </div>
         </div>
       </DialogContent>

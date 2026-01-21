@@ -79,8 +79,8 @@ export default function ExpirationsPage() {
               else if (dias <= 90) estado = 'Advertencia'
               
               vencimientos.push({
-                sku: detalle.producto?.sku || '',
-                nombre: detalle.producto?.nombre || 'Desconocido',
+                sku: typeof detalle.producto === 'object' ? (detalle.producto?.sku || '') : '',
+                nombre: typeof detalle.producto === 'string' ? detalle.producto : (detalle.producto?.nombre || 'Desconocido'),
                 lote: detalle.lote,
                 cantidad: detalle.cantidad,
                 fechaVenc: detalle.fechaVencimiento,

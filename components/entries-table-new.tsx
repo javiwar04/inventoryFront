@@ -128,12 +128,12 @@ export function EntriesTable() {
                 <TableRow key={entrada.id}>
                   <TableCell className="font-mono font-semibold">{entrada.numeroEntrada}</TableCell>
                   <TableCell>{formatDate(entrada.fechaEntrada)}</TableCell>
-                  <TableCell>{entrada.proveedor?.nombre || '-'}</TableCell>
+                  <TableCell>{typeof entrada.proveedor === 'string' ? entrada.proveedor : entrada.proveedor?.nombre || '-'}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{entrada.numeroFactura || '-'}</TableCell>
                   <TableCell className="text-right font-semibold">{formatCurrency(entrada.total)}</TableCell>
                   <TableCell>
                     <Badge variant={entrada.estado === 'completada' ? 'default' : 'secondary'}>
-                      {entrada.estado}
+                      {entrada.estado || 'N/A'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">

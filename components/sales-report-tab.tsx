@@ -106,7 +106,7 @@ export function SalesReportTab() {
         result = result.filter(s => 
             s.numeroSalida.toLowerCase().includes(lower) ||
             (s.cliente && s.cliente.toLowerCase().includes(lower)) ||
-            (s.detalleSalida && s.detalleSalida.some(d => d.producto?.nombre.toLowerCase().includes(lower)))
+            (s.detalleSalida && s.detalleSalida.some(d => (typeof d.producto === 'string' ? d.producto : (d.producto?.nombre || ''))?.toLowerCase().includes(lower)))
         )
     }
 

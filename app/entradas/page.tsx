@@ -91,7 +91,7 @@ export default function EntriesPage() {
       const rows = entradas.map(e => [
         e.numeroEntrada,
         new Date(e.fechaEntrada).toLocaleDateString('es-GT'),
-        e.proveedor?.nombre || 'N/A',
+        typeof e.proveedor === 'string' ? e.proveedor : (e.proveedor?.nombre || 'N/A'),
         e.numeroFactura || 'N/A',
         e.detalleEntrada?.length || 0,
         `Q${(e.total || 0).toFixed(2)}`,

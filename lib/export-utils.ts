@@ -350,7 +350,7 @@ export const generarComandaPDF = (salida: Salida, nombreEmpresa: string = 'Inven
   let granTotal = 0
 
   salida.detalleSalida?.forEach(detalle => {
-      const nombreProducto = detalle.producto?.nombre || 'Producto'
+      const nombreProducto = typeof detalle.producto === 'string' ? detalle.producto : (detalle.producto?.nombre || 'Producto')
       // Truncar nombre si muy largo
       const cleanName = nombreProducto.length > 20 ? nombreProducto.substring(0, 20) + '..' : nombreProducto
       
@@ -469,7 +469,7 @@ export const generarFacturaPDF = (salida: Salida, nombreEmpresa: string = 'Inven
   let granTotal = 0
 
   const tableRows = salida.detalleSalida?.map(detalle => {
-    const nombre = detalle.producto?.nombre || 'Producto'
+    const nombre = typeof detalle.producto === 'string' ? detalle.producto : (detalle.producto?.nombre || 'Producto')
     const precio = detalle.precioUnitario || 0
     // Si no hay subtotal guardado, calcularlo
     const subtotal = detalle.subtotal || (precio * detalle.cantidad)

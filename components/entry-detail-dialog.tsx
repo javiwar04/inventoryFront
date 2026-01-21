@@ -44,7 +44,7 @@ export function EntryDetailDialog({ entrada, open, onOpenChange }: EntryDetailDi
     }).format(value)
   }
 
-  const detalles = entrada.detalleEntrada || (entrada as any).DetalleEntrada || []
+  const detalles = entrada.detalles || entrada.detalleEntrada || (entrada as any).DetalleEntrada || []
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -77,7 +77,7 @@ export function EntryDetailDialog({ entrada, open, onOpenChange }: EntryDetailDi
                 <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Proveedor</p>
-                  <p className="font-medium">{entrada.proveedor?.nombre || 'Sin proveedor'}</p>
+                  <p className="font-medium">{typeof entrada.proveedor === 'string' ? entrada.proveedor : (entrada.proveedor?.nombre || 'Sin proveedor')}</p>
                 </div>
               </div>
             </div>
@@ -151,10 +151,12 @@ export function EntryDetailDialog({ entrada, open, onOpenChange }: EntryDetailDi
                     detalles.map((detalle: any, index: number) => (
                       <TableRow key={detalle.id || index}>
                         <TableCell className="font-medium">
-                          {detalle.producto?.nombre || detalle.Producto?.Nombre || 'Producto desconocido'}
+                          {typeof detalle.producto === 'string' 
+                            ? detalle.producto 
+                            : (detalle.producto?.nombre || detalle.Producto || 'Producto desconocido')}
                         </TableCell>
                         <TableCell className="font-mono text-sm text-muted-foreground">
-                          {detalle.producto?.sku || detalle.Producto?.SKU || '-'}
+                          {typeof detalle.producto === 'object' ? (detalle.producto?.sku || detalle.Producto?.SKU || '-') : '-'}
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline">{detalle.cantidad}</Badge>
@@ -199,7 +201,7 @@ export function EntryDetailDialog({ entrada, open, onOpenChange }: EntryDetailDi
 
           {/* Fechas adicionales */}
           <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-            <p>Creado: {formatDate(entrada.fechaCreacion)}</p>
+            <p>Creado: {entrada.fechaCreacion ? formatDate(entrada.fechaCreacion) : '-'}</p>
           </div>
         </div>
       </DialogContent>
