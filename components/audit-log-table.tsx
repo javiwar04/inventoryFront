@@ -214,7 +214,7 @@ export function AuditLogTable() {
                       {log.fechaHora ? format(new Date(log.fechaHora), "dd/MM/yyyy HH:mm:ss", { locale: es }) : '-'}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {log.usuario?.nombre || (log as any).usuarioNombre || `Usuario #${log.usuarioId}`}
+                      {log.usuarioNombre || log.usuario?.nombre || `Usuario #${log.usuarioId}`}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

@@ -153,6 +153,7 @@ export interface VProductoVencimiento {
 export interface Auditorium {
   id: number
   usuarioId: number | null
+  usuarioNombre: string
   accion: string
   modulo: string
   tablaAfectada: string | null
@@ -163,8 +164,6 @@ export interface Auditorium {
   userAgent: string | null
   fechaHora: string | null
   usuario?: Usuario | null
-  // Campo auxiliar que el backend puede devolver para facilitar el nombre
-  usuarioNombre?: string | null
 }
 
 export interface Configuracion {
@@ -1185,6 +1184,7 @@ export const reportesService = {
 const mapAuditoriumFromBackend = (a: any): Auditorium => ({
   id: a.id || a.Id,
   usuarioId: a.usuarioId || a.UsuarioId,
+  usuarioNombre: a.usuarioNombre || a.UsuarioNombre || '',
   accion: a.accion || a.Accion,
   modulo: a.modulo || a.Modulo,
   tablaAfectada: a.tablaAfectada || a.TablaAfectada,
@@ -1194,8 +1194,7 @@ const mapAuditoriumFromBackend = (a: any): Auditorium => ({
   ipAddress: a.ipAddress || a.IpAddress,
   userAgent: a.userAgent || a.UserAgent,
   fechaHora: a.fechaHora || a.FechaHora,
-  usuario: a.usuario || a.Usuario,
-  usuarioNombre: a.usuarioNombre || a.UsuarioNombre
+  usuario: a.usuario || a.Usuario
 })
 
 export const auditoriaService = {
