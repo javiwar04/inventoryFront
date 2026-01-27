@@ -208,6 +208,7 @@ export function ProductsTable({ search, categoryFilter, supplierFilter, stockFil
             <TableHead>Categoría</TableHead>
             <TableHead className="text-right">Stock</TableHead>
             <TableHead className="text-right">Precio</TableHead>
+            <TableHead>Disponibilidad</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
@@ -241,6 +242,13 @@ export function ProductsTable({ search, categoryFilter, supplierFilter, stockFil
                 <TableCell className="text-right font-mono">Q{product.precio.toFixed(2)}</TableCell>
                 <TableCell>
                   <Badge variant={status.variant}>{status.label}</Badge>
+                </TableCell>
+                <TableCell>
+                  {product.activo ? (
+                    <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">Activo</Badge>
+                  ) : (
+                    <Badge variant="destructive">Inactivo</Badge>
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>

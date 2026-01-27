@@ -108,7 +108,7 @@ export function ProductDialog({ product, onSuccess }: ProductDialogProps) {
         StockActual: Number(formData.get('stock')),
         StockMinimo: Number(formData.get('minStock')),
         Descripcion: (formData.get('description') as string) || null,
-        Estado: 'activo'
+        Estado: formData.get('status') as string
       }
 
       if (isEditing && product) {
@@ -280,6 +280,18 @@ export function ProductDialog({ product, onSuccess }: ProductDialogProps) {
             <div className="grid gap-2">
               <Label htmlFor="description">Descripción</Label>
               <Textarea id="description" name="description" placeholder="Descripción detallada del producto..." rows={3} defaultValue={product?.descripcion ?? ''} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="status">Estado</Label>
+              <Select name="status" defaultValue={product ? (product.activo ? 'activo' : 'inactivo') : 'activo'}>
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Seleccionar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="activo">Activo</SelectItem>
+                  <SelectItem value="inactivo">Inactivo</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

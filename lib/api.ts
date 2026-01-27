@@ -748,11 +748,11 @@ export const statsService = {
     productosStockBajo: number
   }> {
     // Por ahora calculamos del lado del cliente hasta que tengas endpoints en el backend
-    // FIX: Reducimos a 50 para evitar Error 500/Timeout por sobrecarga de datos
+    // Aumentamos el límite para cubrir el mes actual
     const [productos, entradas, salidas] = await Promise.all([
       productosService.getAll(),
-      entradasService.getAll(1, 50),
-      salidasService.getAll(1, 50)
+      entradasService.getAll(1, 1000), // Aumentado para cubrir transacciones del mes
+      salidasService.getAll(1, 1000)  // Aumentado para cubrir transacciones del mes
     ])
 
     const now = new Date()
@@ -793,10 +793,10 @@ export const statsService = {
 
   // Obtener movimientos recientes (últimas entradas y salidas)
   async getMovimientosRecientes(limit: number = 10): Promise<any[]> {
-    // FIX: Limitamos a 50 para evitar crash del backend
+    // Aumentamos límite para asegurar movimientos recientes
     const [entradas, salidas] = await Promise.all([
-      entradasService.getAll(1, 50),
-      salidasService.getAll(1, 50)
+      entradasService.getAll(1, 200),
+      salidasService.getAll(1, 200)
     ])
 
     const movimientos = [

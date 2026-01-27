@@ -81,7 +81,9 @@ export function ExitDialogNew() {
   const cargarProductos = async () => {
     try {
       const prods = await productosService.getAll()
-      setAllProductos(prods)
+      // Filter out inactive products so they cannot be sold
+      const activeProds = prods.filter((p: any) => p.activo)
+      setAllProductos(activeProds)
       // Inicialmente si no hay hotel seleccionado, mostrar vacío o global (decidimos mostrar vacío para obligar selección)
       setProductos([]) 
     } catch (err) {
