@@ -702,6 +702,11 @@ export const salidasService = {
   // Eliminar salida
   async delete(id: number): Promise<void> {
     await api.delete(`/salidas/${id}`)
+  },
+
+  // Actualizar solo método de pago (PATCH)
+  async updateMetodoPago(id: number, metodoPago: string): Promise<void> {
+    await api.patch(`/salidas/${id}/metodo-pago`, { MetodoPago: metodoPago })
   }
 }
 

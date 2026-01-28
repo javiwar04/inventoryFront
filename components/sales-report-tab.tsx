@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DateRangePicker } from "@/components/date-range-picker"
 import { salidasService, proveedoresService, Salida } from "@/lib/api"
-import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye, ChevronLeft, ChevronRight, Banknote } from "lucide-react"
+import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye, ChevronLeft, ChevronRight, Banknote, Edit, Save } from "lucide-react"
 import { toast } from "sonner"
 import { DateRange } from "react-day-picker"
 import * as XLSX from 'xlsx'
@@ -21,6 +21,11 @@ export function SalesReportTab() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   
+  // Edit Payment State
+  const [editPaymentOpen, setEditPaymentOpen] = useState(false)
+  const [selectedSaleForEdit, setSelectedSaleForEdit] = useState<Salida | null>(null)
+  const [newPaymentMethod, setNewPaymentMethod] = useState("")
+
   // Raw Data
   const [allSales, setAllSales] = useState<Salida[]>([])
   const [filteredSales, setFilteredSales] = useState<Salida[]>([])
@@ -145,6 +150,26 @@ export function SalesReportTab() {
           else if (method.toLowerCase().includes('tarjeta')) totalTarjeta += amount
       }
   })
+
+  const openEditPayment = (sale: Salida) => {
+    setSelectedSaleForEdit(sale)
+    setNewPaymentMethod(sale.metodoPago || "")
+    setEditPaymentOpen(true)
+  }
+
+  const handleUpdatePayment = async () => {
+    if (!selectedSaleForEdit || !newPaymentMethod) return
+
+    try {
+        await salidasService.updateMetodoPago(selectedSaleForEdit.id, newPaymentMethod)
+        toast.success("Método de pago actualizado")
+        setEditPaymentOpen(false)
+        loadData() // Reload to refresh
+    } catch (error) {
+        console.error(error)
+        toast.error("Error al actualizar método de pago")
+    }
+  }
 
   const handleExportExcel = () => {
     const data = filteredSales.map(s => ({
@@ -316,6 +341,9 @@ export function SalesReportTab() {
                                 <TableCell className="text-right font-medium">Q{(sale.total || 0).toFixed(2)}</TableCell>
                                 <TableCell className="text-center">
                                     <div className="flex justify-center gap-1">
+                                        <Button size="sm" variant="ghost" onClick={() => openEditPayment(sale)} title="Editar Método de Pago">
+                                            <Edit className="h-4 w-4 text-blue-500" />
+                                        </Button>
                                         <Button size="sm" variant="ghost" onClick={() => {
                                             const result = generarFacturaPDF(sale, 'Selvamo', true)
                                             if (result) setPreviewUrl(result.toString())
@@ -372,6 +400,50 @@ export function SalesReportTab() {
                 {previewUrl && (
                     <iframe src={previewUrl} className="w-full h-full border rounded-md" />
                 )}
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={editPaymentOpen} onOpenChange={setEditPaymentOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Editar Método de Pago</DialogTitle>
+                    <CardDescription>
+                        Ticket: {selectedSaleForEdit?.numeroSalida} | Total: Q{selectedSaleForEdit?.total?.toFixed(2)}
+                    </CardDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label>Nuevo Método de Pago</Label>
+                        <Select value={newPaymentMethod} onValueChange={setNewPaymentMethod}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Efectivo Quetzales">Efectivo Quetzales</SelectItem>
+                                <SelectItem value="Tarjeta">Tarjeta</SelectItem>
+                                <SelectItem value="Transferencia">Transferencia</SelectItem>
+                                <SelectItem value="Cortesía">Cortesía</SelectItem>
+                                <SelectItem value="Mixto (Manual)">Otro / Mixto (Manual)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {/* Allow manual input if needed or if it's mixed/complex */}
+                        <Input 
+                            value={newPaymentMethod} 
+                            onChange={(e) => setNewPaymentMethod(e.target.value)}
+                            placeholder="Escribe manual (ej. Efectivo: Q50 | Tarjeta: Q20)"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Para pagos divididos usa el formato: "Metodo1: QMontoss | Metodo2: QMonto"
+                        </p>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setEditPaymentOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleUpdatePayment}>
+                            <Save className="h-4 w-4 mr-2" />
+                            Guardar Cambios
+                        </Button>
+                    </div>
+                </div>
             </DialogContent>
         </Dialog>
     </div>
