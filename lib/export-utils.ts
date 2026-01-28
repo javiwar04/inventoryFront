@@ -431,8 +431,14 @@ export const generarFacturaPDF = (salida: Salida, nombreEmpresa: string = 'Inven
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(100)
-  doc.text("Dirección Principal", 15, 26) // Personalizar según config
-  doc.text("Teléfono: (502) 1234-5678", 15, 31)
+
+  let yPos = 26
+  if (salida.destino) {
+    doc.text(`Sede: ${salida.destino}`, 15, yPos)
+    yPos += 5
+  }
+  doc.text("Dirección Principal", 15, yPos) // Personalizar según config
+  doc.text("Teléfono: (502) 1234-5678", 15, yPos + 5)
 
   // --- DATOS FACTURA (Derecha) ---
   doc.setTextColor(0)

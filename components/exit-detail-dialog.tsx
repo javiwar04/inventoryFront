@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Separator } from "@/components/ui/separator"
 import type { Salida } from "@/lib/api"
-import { Package, Calendar, FileText, MapPin, AlertCircle } from "lucide-react"
+import { Package, Calendar, FileText, MapPin, AlertCircle, CreditCard, Banknote } from "lucide-react"
 
 interface ExitDetailDialogProps {
   salida: Salida | null
@@ -73,6 +73,14 @@ export function ExitDetailDialog({ salida, open, onOpenChange }: ExitDetailDialo
                   <p className="font-medium">{salida.motivo}</p>
                 </div>
               </div>
+
+              <div className="flex items-start gap-3">
+                <Banknote className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Total</p>
+                  <p className="font-bold text-lg text-green-600">Q{(salida.total || 0).toFixed(2)}</p>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -91,6 +99,14 @@ export function ExitDetailDialog({ salida, open, onOpenChange }: ExitDetailDialo
                   <Badge variant={salida.estado === 'completada' ? 'default' : 'secondary'} className="mt-1">
                     {salida.estado}
                   </Badge>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Método de Pago</p>
+                  <p className="font-medium">{salida.metodoPago || 'N/A'}</p>
                 </div>
               </div>
 
@@ -130,12 +146,14 @@ export function ExitDetailDialog({ salida, open, onOpenChange }: ExitDetailDialo
                     <TableHead>SKU</TableHead>
                     <TableHead className="text-center">Cantidad</TableHead>
                     <TableHead>Lote</TableHead>
+                    <TableHead className="text-right">Precio Unit.</TableHead>
+                    <TableHead className="text-right">Subtotal</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {detalles.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
                         No hay productos en esta salida
                       </TableCell>
                     </TableRow>
@@ -155,6 +173,12 @@ export function ExitDetailDialog({ salida, open, onOpenChange }: ExitDetailDialo
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {detalle.lote || '-'}
+                        </TableCell>
+                        <TableCell className="text-right text-sm">
+                          Q{(detalle.precioUnitario || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-sm">
+                          Q{(detalle.subtotal || 0).toFixed(2)}
                         </TableCell>
                       </TableRow>
                     ))
