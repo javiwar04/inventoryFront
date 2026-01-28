@@ -119,12 +119,32 @@ export function SalesReportTab() {
 
   // Stats Calculation
   const totalGlobal = filteredSales.reduce((acc, curr) => acc + (curr.total || 0), 0)
-  const totalEfectivo = filteredSales.filter(s => 
-    s.metodoPago === 'Efectivo' || 
-    s.metodoPago === 'Efectivo Quetzales' || 
-    s.metodoPago === 'Efectivo Dólares'
-  ).reduce((acc, curr) => acc + (curr.total || 0), 0)
-  const totalTarjeta = filteredSales.filter(s => s.metodoPago?.toLowerCase().includes('tarjeta')).reduce((acc, curr) => acc + (curr.total || 0), 0)
+  
+  // Calculate breakdown handling split payments
+  let totalEfectivo = 0
+  let totalTarjeta = 0
+
+  filteredSales.forEach(s => {
+      const method = s.metodoPago || ''
+      const amount = s.total || 0
+      
+      if (method.includes('|')) {
+          // Split payment format: "Type: Q100.00 | Type2: Q50.00"
+          const parts = method.split('|')
+          parts.forEach(p => {
+              const [type, m] = p.split(':')
+              if (type && m) {
+                  const val = parseFloat(m.replace(/[^0-9.]/g, '')) || 0
+                  if (type.toLowerCase().includes('efectivo')) totalEfectivo += val
+                  else if (type.toLowerCase().includes('tarjeta')) totalTarjeta += val
+              }
+          })
+      } else {
+          // Single payment
+          if (method.toLowerCase().includes('efectivo')) totalEfectivo += amount
+          else if (method.toLowerCase().includes('tarjeta')) totalTarjeta += amount
+      }
+  })
 
   const handleExportExcel = () => {
     const data = filteredSales.map(s => ({
