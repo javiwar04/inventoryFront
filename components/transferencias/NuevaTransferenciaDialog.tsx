@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Trash2, Loader2, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
-import { proveedoresService, inventarioService, productosService, Producto } from "@/lib/api"
+import { proveedoresService, inventarioService, productosService, Producto, registrarAuditoria } from "@/lib/api"
 import { transferenciasService, TransferenciaCreateDto, DetalleTransferenciaCreateDto } from "@/services/transferencias"
 import { useAuth } from "@/contexts/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -202,7 +202,18 @@ export function NuevaTransferenciaDialog({ onSuccess }: NuevaTransferenciaDialog
         detalles
       }
 
-      await transferenciasService.create(data)
+      const result = await transferenciasService.create(data)
+      
+      // Registrar auditoría
+      await registrarAuditoria({
+        usuarioId: user?.id || 1,
+        accion: 'create',
+        modulo: 'transferencias',
+        tablaAfectada: 'transferencias',
+        registroId: result?.id || 0,
+        descripcion: `Transferencia creada: ${numeroTransferencia} de Hotel ${hotelOrigenId} a ${hotelDestinoId}`
+      })
+
       toast.success("Transferencia creada exitosamente")
       setOpen(false)
       onSuccess()
@@ -243,7 +254,7 @@ export function NuevaTransferenciaDialog({ onSuccess }: NuevaTransferenciaDialog
             Nueva Transferencia
          </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[1100px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nueva Transferencia de Inventario</DialogTitle>
           <DialogDescription>
@@ -251,7 +262,7 @@ export function NuevaTransferenciaDialog({ onSuccess }: NuevaTransferenciaDialog
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-4 py-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4">
           <div className="space-y-2">
             <Label>Número Transferencia</Label>
             <Input 

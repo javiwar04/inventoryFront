@@ -27,10 +27,12 @@ import { transferenciasService, TransferenciaListDto } from "@/services/transfer
 import { NuevaTransferenciaDialog } from "@/components/transferencias/NuevaTransferenciaDialog"
 import { DetallesTransferenciaDialog } from "@/components/transferencias/DetallesTransferenciaDialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { proveedoresService } from "@/lib/api"
+import { proveedoresService, registrarAuditoria } from "@/lib/api"
 import { usePermissions } from "@/hooks/use-permissions"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function TransferenciasPage() {
+  const { user } = useAuth()
   const { canCreate, canDelete, isAdmin } = usePermissions() // Importante: usar 'isAdmin' como fallback si 'canDelete' no existe en el hook
   const [transferencias, setTransferencias] = useState<TransferenciaListDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -82,6 +84,18 @@ export default function TransferenciasPage() {
 
     try {
       await transferenciasService.delete(deleteId)
+      
+      // Registrar auditoría
+      const transfer = transferencias.find(t => t.id === deleteId)
+      await registrarAuditoria({
+        usuarioId: user?.id || 1,
+        accion: 'delete',
+        modulo: 'transferencias',
+        tablaAfectada: 'transferencias',
+        registroId: deleteId,
+        descripcion: `Transferencia revertida: ${transfer ? transfer.numeroTransferencia : deleteId}`
+      })
+
       toast.success("Transferencia revertida exitosamente")
       loadTransferencias()
     } catch (error) {
@@ -118,7 +132,7 @@ export default function TransferenciasPage() {
       <StaticSidebar />
       <div className="flex flex-1 flex-col sm:gap-4 sm:py-4">
         <Header />
-        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+        <main className="flex flex-1 flex-col gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
           <div className="flex items-center gap-4">
              <div className="bg-primary/10 p-3 rounded-lg">
                 <ArrowLeftRight className="h-6 w-6 text-primary" />
