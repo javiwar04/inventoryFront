@@ -16,6 +16,8 @@ import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { categoriasService, proveedoresService } from "@/lib/api"
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 export default function ProductsPage() {
   const [term, setTerm] = useState("")
   const [productos, setProductos] = useState<any[]>([])
@@ -26,6 +28,7 @@ export default function ProductsPage() {
   const [stockFilter, setStockFilter] = useState<string>("all")
   const [hotelFilter, setHotelFilter] = useState<string>("all")
   const [showFilters, setShowFilters] = useState(false)
+  const [currentTab, setCurrentTab] = useState("active")
   const { canView, canCreate } = usePermissions()
 
   useEffect(() => {
@@ -236,13 +239,42 @@ export default function ProductsPage() {
               </Card>
             )}
 
-            <ProductsTable 
-              search={term} 
-              categoryFilter={categoriaFilter}
-              supplierFilter={proveedorFilter}
-              stockFilter={stockFilter}
-              hotelFilter={hotelFilter}
-            />
+            <Tabs defaultValue="active" value={currentTab} onValueChange={setCurrentTab} className="w-full">
+              <div className="flex items-center justify-between mb-4">
+                <TabsList>
+                  <TabsTrigger value="active">Productos Activos</TabsTrigger>
+                  <TabsTrigger value="inactive">Papelera / Inactivos</TabsTrigger>
+                </TabsList>
+              </div>
+              
+              <TabsContent value="active" className="mt-0">
+                <ProductsTable 
+                  search={term} 
+                  categoryFilter={categoriaFilter} 
+                  supplierFilter={proveedorFilter}
+                  stockFilter={stockFilter}
+                  hotelFilter={hotelFilter}
+                  statusFilter="active"
+                />
+              </TabsContent>
+              
+              <TabsContent value="inactive" className="mt-0">
+                 <div className="rounded-md border border-dashed p-4 mb-4 bg-yellow-50/50">
+                    <p className="text-sm text-yellow-600 flex items-center gap-2">
+                       <Filter className="h-4 w-4" />
+                       Estás visualizando productos inactivos que no aparecen en el inventario principal.
+                    </p>
+                 </div>
+                 <ProductsTable 
+                    search={term} 
+                    categoryFilter={categoriaFilter} 
+                    supplierFilter={proveedorFilter}
+                    stockFilter={stockFilter}
+                    hotelFilter={hotelFilter}
+                    statusFilter="inactive"
+                 />
+              </TabsContent>
+            </Tabs>
           </main>
         </div>
       </div>

@@ -26,9 +26,10 @@ interface ProductsTableProps {
   supplierFilter?: string
   stockFilter?: string
   hotelFilter?: string
+  statusFilter?: 'active' | 'inactive' | 'all'
 }
 
-export function ProductsTable({ search, categoryFilter, supplierFilter, stockFilter, hotelFilter }: ProductsTableProps) {
+export function ProductsTable({ search, categoryFilter, supplierFilter, stockFilter, hotelFilter, statusFilter = 'active' }: ProductsTableProps) {
   const { canEdit, canDelete } = usePermissions()
   const [selected, setSelected] = useState<Producto | null>(null)
   const [viewDetails, setViewDetails] = useState<Producto | null>(null)
@@ -97,6 +98,11 @@ export function ProductsTable({ search, categoryFilter, supplierFilter, stockFil
     const matchesCategory = !categoryFilter || categoryFilter === "all" || p.categoria_id === parseInt(categoryFilter)
     const matchesSupplier = !supplierFilter || supplierFilter === "all" || p.proveedor_id === parseInt(supplierFilter)
     
+    // Status filter
+    let matchesStatus = true
+    if (statusFilter === 'active') matchesStatus = !!p.activo
+    else if (statusFilter === 'inactive') matchesStatus = !p.activo
+
     // Determine the stock to check based on filters
     const currentStock = (hotelFilter && hotelFilter !== "all") ? (hotelStocks[p.id] || 0) : p.stock_actual
     
@@ -115,7 +121,7 @@ export function ProductsTable({ search, categoryFilter, supplierFilter, stockFil
        matchesStock = currentStock > 0
     }
 
-    return matchesSearch && matchesCategory && matchesSupplier && matchesStock
+    return matchesSearch && matchesCategory && matchesSupplier && matchesStock && matchesStatus
   })
 
   // Pagination
