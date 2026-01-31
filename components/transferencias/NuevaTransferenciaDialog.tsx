@@ -191,14 +191,10 @@ export function NuevaTransferenciaDialog({ onSuccess }: NuevaTransferenciaDialog
 
     setLoading(true)
     try {
-        // Ensure date is in proper ISO format for backend (append time)
-      const isoDate = new Date(fechaTransferencia);
-      // Adjust to midday to avoid timezone shifting the date when converting to UTC
-      isoDate.setHours(12, 0, 0, 0); 
-
+      // Backend expects System.DateOnly (YYYY-MM-DD)
       const data: TransferenciaCreateDto = {
         numeroTransferencia,
-        fechaTransferencia: isoDate.toISOString(),
+        fechaTransferencia,
         hotelOrigenId: parseInt(hotelOrigenId),
         hotelDestinoId: parseInt(hotelDestinoId),
         observaciones,
