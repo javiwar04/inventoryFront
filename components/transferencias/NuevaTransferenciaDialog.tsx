@@ -47,8 +47,8 @@ export function NuevaTransferenciaDialog({ onSuccess }: NuevaTransferenciaDialog
   useEffect(() => {
     if (open) {
       loadInitialData()
-      // Generate default transfer number (simplified)
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+      // Generate default transfer number with more randomness to avoid collisions
+      const random = Math.floor(Math.random() * 90000) + 10000
       setNumeroTransferencia(`TRF-${new Date().getFullYear()}-${random}`)
       resetForm(false)
     }
@@ -191,9 +191,14 @@ export function NuevaTransferenciaDialog({ onSuccess }: NuevaTransferenciaDialog
 
     setLoading(true)
     try {
+        // Ensure date is in proper ISO format for backend (append time)
+      const isoDate = new Date(fechaTransferencia);
+      // Adjust to midday to avoid timezone shifting the date when converting to UTC
+      isoDate.setHours(12, 0, 0, 0); 
+
       const data: TransferenciaCreateDto = {
         numeroTransferencia,
-        fechaTransferencia,
+        fechaTransferencia: isoDate.toISOString(),
         hotelOrigenId: parseInt(hotelOrigenId),
         hotelDestinoId: parseInt(hotelDestinoId),
         observaciones,
