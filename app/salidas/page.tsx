@@ -69,11 +69,22 @@ export default function ExitsPage() {
       }
 
       const now = new Date()
+      // Use UTC-based comparison for stored dates
+      /*
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-      
       const salidasMes = salidasFiltradas.filter(s => 
         new Date(s.fechaSalida) >= firstDayOfMonth
       )
+      */
+     
+      const currentYear = now.getFullYear()
+      const currentMonth = now.getMonth()
+      
+      const salidasMes = salidasFiltradas.filter(s => {
+        const d = new Date(s.fechaSalida)
+        // Adjust logic: if date string implies UTC (e.g. YYYY-MM-DD), use getUTC to match the "face value" of the date
+        return d.getUTCFullYear() === currentYear && d.getUTCMonth() === currentMonth
+      })
 
       const productosDespachados = salidasMes.reduce((sum, s) => 
         sum + (s.detalles?.reduce((acc, d) => acc + d.cantidad, 0) || s.detalleSalida?.reduce((acc, d) => acc + d.cantidad, 0) || 0), 0

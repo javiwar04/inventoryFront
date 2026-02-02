@@ -760,15 +760,18 @@ export const statsService = {
     ])
 
     const now = new Date()
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth()
     
-    const entradasMes = entradas.filter(e => 
-      new Date(e.fechaEntrada) >= firstDayOfMonth
-    ).length
+    const entradasMes = entradas.filter(e => {
+      const d = new Date(e.fechaEntrada)
+      return d.getUTCFullYear() === currentYear && d.getUTCMonth() === currentMonth
+    }).length
 
-    const salidasMes = salidas.filter(s => 
-      new Date(s.fechaSalida) >= firstDayOfMonth
-    ).length
+    const salidasMes = salidas.filter(s => {
+      const d = new Date(s.fechaSalida)
+      return d.getUTCFullYear() === currentYear && d.getUTCMonth() === currentMonth
+    }).length
 
     const valorInventario = productos.reduce((sum, p) => {
       const stock = Number(p.stock_actual) || 0
@@ -934,68 +937,40 @@ export const reportesService = {
     for (let i = 11; i >= 0; i--) {
       const fecha = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const mesNombre = fecha.toLocaleDateString('es-GT', { month: 'short', year: 'numeric' })
-      const finMes = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0, 23, 59, 59)
-      
-      
-      // FIX: Calculate data for the specific month window, avoiding complex recursion for now to ensure data shows up
-      // Simplified: Just use the current month statistics if historical data is likely incomplete
-      // BUT, let's try to reconstruct based on dates if possible.
+      const targetYear = fecha.getFullYear()
+      const targetMonth = fecha.getMonth()
       
       let valorTotalMes = 0
-      
-      // Entradas en el mes
-      const entradasMes = entradasAll.filter(e => {
-          const d = new Date(e.fechaEntrada)
-          return d.getFullYear() === fecha.getFullYear() && d.getMonth() === fecha.getMonth()
+
+      // Simplificación para rendimiento: Calcular fuera del loop de productos si es posible, 
+      // pero requerimos stock por producto.
+      // Optimizamos filtrado:
+      const entradasHastaMes = entradasAll.filter(e => {
+         const d = new Date(e.fechaEntrada)
+         const y = d.getUTCFullYear()
+         const m = d.getUTCMonth()
+         return y < targetYear || (y === targetYear && m <= targetMonth)
       })
 
-      // Salidas en el mes
-      const salidasMes = salidasAll.filter(s => {
-          const d = new Date(s.fechaSalida)
-          return d.getFullYear() === fecha.getFullYear() && d.getMonth() === fecha.getMonth()
+      const salidasHastaMes = salidasAll.filter(s => {
+         const d = new Date(s.fechaSalida)
+         const y = d.getUTCFullYear()
+         const m = d.getUTCMonth()
+         return y < targetYear || (y === targetYear && m <= targetMonth)
       })
 
-      // Aproximación: Valor Inventario Estimado = (Entradas - Salidas) * Costo Promedio Global
-      // Esto es una simplificación porque no tenemos el historial de stock diario snapshot.
-      /*
-      for (const producto of productos) {
-         // ... old expensive logic ...
-      }
-      */
-      
-      // Fallback: If we can't calculate history reliably, show CURRENT stock for latest month, and 0 for others?
-      // No, user wants to see trends.
-      // Let's settle for: Stock Value = Current Stock Value (for all months) UNLESS we have movements.
-      // Actually, a constant line is better than 0.
-      // Better yet: Show 'Movimiento Neto de Valor' instead of 'Valor Absoluto' if base is unknown?
-      // No, user assumes "Valor de Inventario".
-
-      // Let's try to calculate simple: Current Value
-      if (i === 0) { // Current month
-          valorTotalMes = productos.reduce((sum, p) => sum + (p.stock_actual * (Number(p.costo) || Number(p.precio) || 0)), 0)
-      } else {
-        // Previous months: hard to calculate without snapshots.
-        // Let's mimic the data by taking the next month value and subtracting this month's net change.
-        // This is backwards calculation.
-        // But since we are iterating backwards in the loop (now - i), it is tricky.
-        // Let's just return current stock value for all points to verify connection first, 
-        // OR better: calculate "Value Added/Lost" per month.
-        
-        // Let's use the code I wrote in prev turn which iterates products.
-        // I will trust the original logic but make it robust against nulls.
-        
-         for (const producto of productos) {
-            // Entradas acumuladas hasta fin de ESTE mes
-            const qEntradas = entradasAll
-                .filter(e => new Date(e.fechaEntrada) <= finMes)
+      // Calcular valor solo para el mes actual (i === 0) ya que es costoso iterar todo para atras
+      // O iterar todo si son pocos productos.
+       for (const producto of productos) {
+            // Entradas acumuladas
+            const qEntradas = entradasHastaMes
                 .reduce((sum, e) => {
                   const details = e.detalles || e.detalleEntrada || []
                   const item = details.find(d => d.productoId === producto.id)
                   return sum + (item?.cantidad || 0)
                 }, 0)
 
-            const qSalidas = salidasAll
-                .filter(s => new Date(s.fechaSalida) <= finMes)
+            const qSalidas = salidasHastaMes
                 .reduce((sum, s) => {
                   const details = s.detalles || s.detalleSalida || []
                   const item = details.find(d => d.productoId === producto.id)
@@ -1005,8 +980,7 @@ export const reportesService = {
             const stockEstimado = Math.max(0, qEntradas - qSalidas)
             // Use current cost as approximation
             valorTotalMes += stockEstimado * (Number(producto.costo) || Number(producto.precio) || 0)
-         }
-      }
+       }
 
       meses.push({
         mes: mesNombre,
@@ -1144,13 +1118,15 @@ export const reportesService = {
     for (let i = 5; i >= 0; i--) {
       const fecha = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const mesNombre = fecha.toLocaleDateString('es-GT', { month: 'short' })
-      const mesInicio = new Date(fecha.getFullYear(), fecha.getMonth(), 1)
-      const mesFin = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0, 23, 59, 59)
+      
+      const targetYear = fecha.getFullYear()
+      const targetMonth = fecha.getMonth()
 
       // Cantidad de Items Vendidos (no solo transacciones)
       const totalVentas = ventas.reduce((sum, s) => {
-        const fechaSalida = new Date(s.fechaSalida)
-        if (fechaSalida >= mesInicio && fechaSalida <= mesFin) {
+        const d = new Date(s.fechaSalida)
+        // Compare UTC date parts with the target month
+        if (d.getUTCFullYear() === targetYear && d.getUTCMonth() === targetMonth) {
            // Sumar items individuales del detalle
            const details = s.detalles || s.detalleSalida || []
            const itemsVendidos = details.reduce((isum, d) => isum + (d.cantidad || 0), 0)
@@ -1161,8 +1137,8 @@ export const reportesService = {
 
       // Cantidad de Items Entrados
       const totalEntradas = entradas.reduce((sum, e) => {
-        const fechaEntrada = new Date(e.fechaEntrada)
-        if (fechaEntrada >= mesInicio && fechaEntrada <= mesFin) {
+        const d = new Date(e.fechaEntrada)
+        if (d.getUTCFullYear() === targetYear && d.getUTCMonth() === targetMonth) {
             const details = e.detalles || e.detalleEntrada || []
             const itemsEntrados = details.reduce((isum, d) => isum + (d.cantidad || 0), 0)
             return sum + itemsEntrados

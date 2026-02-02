@@ -55,12 +55,14 @@ export default function EntriesPage() {
       }
 
       const now = new Date()
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const currentYear = now.getFullYear()
+      const currentMonth = now.getMonth()
       
-      // Conteo Mes Actual
-      const entradasMes = entradasFiltradas.filter(e => 
-        new Date(e.fechaEntrada) >= firstDayOfMonth
-      ).length
+      // Conteo Mes Actual (Using UTC components to match date string face value)
+      const entradasMes = entradasFiltradas.filter(e => {
+        const d = new Date(e.fechaEntrada)
+        return d.getUTCFullYear() === currentYear && d.getUTCMonth() === currentMonth
+      }).length
 
       // Totales Históricos (del usuario/hotel)
       const productosIngresados = entradasFiltradas.reduce((sum, e) => 
