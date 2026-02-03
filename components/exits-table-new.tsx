@@ -5,9 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Eye, Trash2, Loader2 } from "lucide-react"
+import { MoreHorizontal, Eye, Trash2, Loader2, Printer } from "lucide-react"
 import { toast } from "sonner"
 import { salidasService, type Salida, registrarAuditoria, proveedoresService } from "@/lib/api"
+import { generarFacturaPDF } from "@/lib/export-utils"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { ExitDetailDialog } from "@/components/exit-detail-dialog"
 import { useAuth } from "@/contexts/auth-context"
@@ -170,6 +171,17 @@ export function ExitsTable() {
                         <DropdownMenuItem onClick={() => setSelectedSalida(salida)}>
                           <Eye className="mr-2 h-4 w-4" />
                           Ver Detalles
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                            try {
+                                generarFacturaPDF(salida, 'Hotel Casona del Lago') // Nombre por defecto o configurable
+                                toast.success('Factura descargada')
+                            } catch (e) {
+                                toast.error('Error generando factura')
+                            }
+                        }}>
+                          <Printer className="mr-2 h-4 w-4" />
+                          Imprimir Factura
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(salida.id)}>

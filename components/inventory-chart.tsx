@@ -25,10 +25,10 @@ export function InventoryChart() {
       setLoading(true)
       
       // Obtener todos los movimientos del año
-      // FIX: Reducido de 10000 a 100 para evitar crash. La gráfica será parcial hasta arreglar backend.
+      // FIX: Aumentado de 100 a 1000 para cubrir más historial
       const [entradas, salidas] = await Promise.all([
-        entradasService.getAll(1, 100),
-        salidasService.getAll(1, 100)
+        entradasService.getAll(1, 1000),
+        salidasService.getAll(1, 1000)
       ])
 
       // Obtener los últimos 6 meses
@@ -38,19 +38,21 @@ export function InventoryChart() {
       for (let i = 5; i >= 0; i--) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
         const monthName = date.toLocaleDateString('es-GT', { month: 'short' })
-        const year = date.getFullYear()
-        const month = date.getMonth()
+        const targetYear = date.getFullYear()
+        const targetMonth = date.getMonth()
         
         // Contar entradas del mes
         const entradasCount = entradas.filter(e => {
-          const entradaDate = new Date(e.fechaEntrada)
-          return entradaDate.getFullYear() === year && entradaDate.getMonth() === month
+          const d = new Date(e.fechaEntrada)
+          // Usar UTC para coincidir fecha string YYYY-MM-DD
+          return d.getUTCFullYear() === targetYear && d.getUTCMonth() === targetMonth
         }).length
         
         // Contar salidas del mes
         const salidasCount = salidas.filter(s => {
-          const salidaDate = new Date(s.fechaSalida)
-          return salidaDate.getFullYear() === year && salidaDate.getMonth() === month
+          const d = new Date(s.fechaSalida)
+          // Usar UTC para coincidir fecha string YYYY-MM-DD
+          return d.getUTCFullYear() === targetYear && d.getUTCMonth() === targetMonth
         }).length
         
         monthsData.push({
