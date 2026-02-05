@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button"
 import { StockValueChart } from "@/components/stock-value-chart"
 import { CategoryDistribution } from "@/components/category-distribution"
 import { TopProductsTable } from "@/components/top-products-table"
+import { TopSellingProducts } from "@/components/top-selling-products"
 import { MonthlyComparison } from "@/components/monthly-comparison"
-import { Download, FileText, Calendar, TrendingUp, Loader2, FileSpreadsheet } from "lucide-react"
+import { LowStockAlert } from "@/components/low-stock-alert"
+import { Download, FileText, Calendar, TrendingUp, Loader2, FileSpreadsheet, DollarSign, AlertTriangle } from "lucide-react"
 import { DateRangePicker } from "@/components/date-range-picker"
 import type { DateRange } from "react-day-picker"
 import { ProtectedRoute } from "@/components/protected-route"
@@ -33,7 +35,9 @@ export default function ReportsPage() {
     totalMovimientos: 0,
     rotacionPromedio: 0,
     diasPromedioStock: 0,
-    eficiencia: 0
+    eficiencia: 0,
+    valorTotalInventario: 0,
+    itemsBajoStock: 0
   })
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
@@ -402,7 +406,27 @@ export default function ReportsPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="grid gap-6 md:grid-cols-4 mb-6">
+                    <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-6">
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                          <CardTitle className="text-sm font-medium text-muted-foreground">Valor del Inventario</CardTitle>
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">Q{stats.valorTotalInventario?.toLocaleString()}</div>
+                          <p className="text-xs text-muted-foreground mt-1">Costo total actual</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                          <CardTitle className="text-sm font-medium text-muted-foreground">Aletas de Stock</CardTitle>
+                          <AlertTriangle className="h-4 w-4 text-destructive" />
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold text-destructive">{stats.itemsBajoStock}</div>
+                          <p className="text-xs text-muted-foreground mt-1">Productos bajo mínimo</p>
+                        </CardContent>
+                      </Card>
                       <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                           <CardTitle className="text-sm font-medium text-muted-foreground">Total Movimientos</CardTitle>
@@ -447,6 +471,10 @@ export default function ReportsPage() {
                       </Card>
                     </div>
 
+                    <div className="mb-6">
+                      <LowStockAlert limit={10} />
+                    </div>
+
                     <div className="grid gap-6 md:grid-cols-2 mb-6">
                       <StockValueChart dateRange={dateRange} />
                       <CategoryDistribution dateRange={dateRange} />
@@ -454,7 +482,10 @@ export default function ReportsPage() {
 
                     <div className="grid gap-6 md:grid-cols-2 mb-6">
                       <MonthlyComparison dateRange={dateRange} />
-                      <TopProductsTable dateRange={dateRange} />
+                      <div className="space-y-6">
+                        <TopSellingProducts dateRange={dateRange} limit={5} />
+                        <TopProductsTable dateRange={dateRange} />
+                      </div>
                     </div>
                   </>
                 )}

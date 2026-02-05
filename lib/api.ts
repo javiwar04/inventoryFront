@@ -914,11 +914,17 @@ export const reportesService = {
     ).length
     const eficiencia = (productosConStockAdecuado / productos.length) * 100
 
+    // Cálculo de nuevos KPIs
+    const valorTotalInventario = productos.reduce((sum, p) => sum + (p.stock_actual * (p.costo || 0)), 0)
+    const itemsBajoStock = productos.filter(p => p.stock_actual <= p.stock_minimo && p.activo).length
+
     return {
       totalMovimientos,
       rotacionPromedio: parseFloat(rotacionPromedio.toFixed(2)),
       diasPromedioStock: Math.round(diasPromedioStock),
-      eficiencia: parseFloat(eficiencia.toFixed(1))
+      eficiencia: parseFloat(eficiencia.toFixed(1)),
+      valorTotalInventario,
+      itemsBajoStock
     }
   },
 
@@ -1053,6 +1059,49 @@ export const reportesService = {
     // Ordenar por total de movimientos
     return productosStats
       .sort((a, b) => (b.entradas + b.salidas) - (a.entradas + a.salidas))
+      .slice(0, limit)
+  },
+
+  // Top productos más vendidos (solo salidas)
+  async getTopVendidos(limit: number = 10, fechaInicio?: Date, fechaFin?: Date) {
+    const [productos, salidasAll] = await Promise.all([
+      productosService.getAll(),
+      salidasService.getAll(1, 10000)
+    ])
+
+    // Filtrar por rango de fechas si se proporcionan
+    const salidas = fechaInicio && fechaFin
+      ? salidasAll.filter(s => {
+          const fecha = new Date(s.fechaSalida)
+          return fecha >= fechaInicio && fecha <= fechaFin
+        })
+      : salidasAll
+
+    const productosStats = productos.map(producto => {
+      // Contar salidas del producto
+      const totalSalidas = salidas.reduce((sum, s) => {
+        const detalles = s.detalles || s.detalleSalida || []
+        const cantidadProducto = detalles
+          .filter(d => d.productoId === producto.id)
+          .reduce((dSum, d) => dSum + d.cantidad, 0)
+        return sum + cantidadProducto
+      }, 0)
+
+      const valorVendido = totalSalidas * (producto.precio || 0)
+
+      return {
+        id: producto.id,
+        nombre: producto.nombre,
+        sku: producto.sku,
+        salidas: totalSalidas,
+        valorVendido,
+        stockActual: producto.stock_actual
+      }
+    })
+
+    // Ordenar por total de salidas (de mayor a menor)
+    return productosStats
+      .sort((a, b) => b.salidas - a.salidas)
       .slice(0, limit)
   },
 

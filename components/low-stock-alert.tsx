@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { AlertTriangle, Loader2 } from "lucide-react"
 import { statsService, type Producto } from "@/lib/api"
 
-export function LowStockAlert() {
+export function LowStockAlert({ limit = 5 }: { limit?: number }) {
   const [productos, setProductos] = useState<Producto[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -18,7 +18,8 @@ export function LowStockAlert() {
     try {
       setLoading(true)
       const data = await statsService.getProductosStockBajo()
-      setProductos(data.slice(0, 5)) // Solo mostrar los primeros 5
+      // Si limit es 0 o negativo, mostrar todos
+      setProductos(limit > 0 ? data.slice(0, limit) : data)
     } catch (err) {
       console.error('Error al cargar productos con stock bajo:', err)
     } finally {

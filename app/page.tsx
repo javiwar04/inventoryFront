@@ -6,7 +6,7 @@ import { StaticSidebar } from "@/components/static-sidebar"
 import { StatsCard } from "@/components/stats-card"
 import { RecentMovements } from "@/components/recent-movements"
 import { InventoryChart } from "@/components/inventory-chart"
-import { LowStockAlert } from "@/components/low-stock-alert"
+import { TopSellingProducts } from "@/components/top-selling-products"
 import { Package, ArrowDownToLine, ArrowUpFromLine, TrendingUp, Loader2 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { statsService } from "@/lib/api"
@@ -126,7 +126,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <div className="glass-card rounded-2xl p-6 h-full hover-lift smooth-transition">
-                        <LowStockAlert />
+                        <TopSellingProducts limit={5} title="Top Ventas" />
                       </div>
                     </div>
                   </div>
