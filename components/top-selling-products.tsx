@@ -45,11 +45,11 @@ export function TopSellingProducts({ dateRange, title = "Productos Más Vendidos
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="flex items-center justify-center h-[300px]">
+          <div className="flex items-center justify-center h-[200px]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : productos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
+          <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
             <Package className="h-12 w-12 mb-2 opacity-50" />
             <p>No hay ventas registradas</p>
           </div>

@@ -27,6 +27,7 @@ import { toast } from "sonner"
 import { usePermissions } from "@/hooks/use-permissions"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SalesReportTab } from "@/components/sales-report-tab"
+import { SalesByLocation } from "@/components/sales-by-location"
 
 export default function ReportsPage() {
   const { canView } = usePermissions()
@@ -475,17 +476,19 @@ export default function ReportsPage() {
                       <LowStockAlert limit={10} />
                     </div>
 
-                    <div className="grid gap-6 md:grid-cols-2 mb-6">
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
                       <StockValueChart dateRange={dateRange} />
                       <CategoryDistribution dateRange={dateRange} />
+                      <SalesByLocation dateRange={dateRange} />
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2 mb-6">
                       <MonthlyComparison dateRange={dateRange} />
-                      <div className="space-y-6">
-                        <TopSellingProducts dateRange={dateRange} limit={5} />
-                        <TopProductsTable dateRange={dateRange} />
-                      </div>
+                      <TopSellingProducts dateRange={dateRange} limit={5} />
+                    </div>
+
+                    <div className="mb-6">
+                      <TopProductsTable dateRange={dateRange} />
                     </div>
                   </>
                 )}

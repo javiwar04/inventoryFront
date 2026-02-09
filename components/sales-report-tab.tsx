@@ -50,7 +50,7 @@ export function SalesReportTab() {
     setLoading(true)
     try {
       const [sales, provs] = await Promise.all([
-        salidasService.getAll(), // Fetch all to filter locally
+        salidasService.getAll(1, 100000), // Fetch all to filter locally
         proveedoresService.getAll()
       ])
       // Filter exits that are "Ventas" (Assuming all sales created via POS have a specific nature or we just show all Salidas)
