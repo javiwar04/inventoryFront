@@ -707,6 +707,11 @@ export const salidasService = {
   // Actualizar solo método de pago (PATCH)
   async updateMetodoPago(id: number, metodoPago: string): Promise<void> {
     await api.patch(`/salidas/${id}/metodo-pago`, { MetodoPago: metodoPago })
+  },
+
+  // Actualizar fecha de salida (PATCH) - Requiere endpoint en Backend
+  async updateFecha(id: number, fechaSalida: string): Promise<void> {
+    await api.patch(`/salidas/${id}/fecha`, { FechaSalida: fechaSalida })
   }
 }
 

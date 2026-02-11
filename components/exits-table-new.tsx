@@ -5,11 +5,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Eye, Trash2, Loader2, Printer } from "lucide-react"
+import { MoreHorizontal, Eye, Trash2, Loader2, Printer, Calendar } from "lucide-react"
 import { toast } from "sonner"
 import { salidasService, type Salida, registrarAuditoria, proveedoresService } from "@/lib/api"
 import { generarFacturaPDF } from "@/lib/export-utils"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { ExitDetailDialog } from "@/components/exit-detail-dialog"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -19,6 +22,11 @@ export function ExitsTable() {
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [selectedSalida, setSelectedSalida] = useState<Salida | null>(null)
+  
+  // Estado para edición de fecha
+  const [editDateOpen, setEditDateOpen] = useState(false)
+  const [dateToEdit, setDateToEdit] = useState<Salida | null>(null)
+  const [newDate, setNewDate] = useState("")
 
   useEffect(() => {
     loadData()
@@ -91,6 +99,39 @@ export function ExitsTable() {
       setDeleteId(null)
     } catch (err: any) {
       toast.error('Error al eliminar', { description: err?.message })
+    }
+  }
+
+  const openDateDialog = (salida: Salida) => {
+    setDateToEdit(salida)
+    // Extraer YYYY-MM-DD para el input date
+    const datePart = new Date(salida.fechaSalida).toISOString().split('T')[0]
+    setNewDate(datePart)
+    setEditDateOpen(true)
+  }
+
+  const handleUpdateDate = async () => {
+    if (!dateToEdit || !newDate) return
+
+    try {
+      await salidasService.updateFecha(dateToEdit.id, newDate)
+      toast.success('Fecha actualizada correctamente')
+      setEditDateOpen(false)
+      loadData() // Recargar datos
+
+      // Auditoría
+      registrarAuditoria({
+        accion: 'actualizar',
+        modulo: 'salidas',
+        descripcion: `Fecha de salida actualizada: ${dateToEdit.numeroSalida}`,
+        detalles: JSON.stringify({ old: dateToEdit.fechaSalida, new: newDate }),
+        registroId: dateToEdit.id
+      })
+
+    } catch (err: any) {
+        toast.error('Error al actualizar fecha', { 
+            description: err?.response?.data?.message || err.message 
+        })
     }
   }
 
@@ -183,6 +224,10 @@ export function ExitsTable() {
                           <Printer className="mr-2 h-4 w-4" />
                           Imprimir Factura
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openDateDialog(salida)}>
+                          <Calendar className="mr-2 h-4 w-4" />
+                          Editar Fecha
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(salida.id)}>
                           <Trash2 className="mr-2 h-4 w-4" />
@@ -231,6 +276,34 @@ export function ExitsTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={editDateOpen} onOpenChange={setEditDateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar Fecha de Salida</DialogTitle>
+            <DialogDescription>
+              Seleccione la nueva fecha para la salida {dateToEdit?.numeroSalida}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="new-date" className="text-right">
+                Fecha
+              </Label>
+              <Input
+                id="new-date"
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDateOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUpdateDate}>Guardar Cambios</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
