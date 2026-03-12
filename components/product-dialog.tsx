@@ -105,7 +105,7 @@ export function ProductDialog({ product, onSuccess }: ProductDialogProps) {
         UnidadMedida: formData.get('unit') as string,
         Precio: Number(formData.get('price')),
         Costo: 0, // Por ahora en 0, luego puedes agregarlo al formulario
-        StockActual: Number(formData.get('stock')),
+        StockActual: isEditing ? (product?.stock_actual ?? 0) : 0,
         StockMinimo: Number(formData.get('minStock')),
         Descripcion: (formData.get('description') as string) || null,
         Estado: formData.get('status') as string
@@ -253,8 +253,16 @@ export function ProductDialog({ product, onSuccess }: ProductDialogProps) {
                 <Input id="price" name="price" type="number" placeholder="0.00" step="0.01" defaultValue={product?.precio ?? ''} required />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="stock">Stock Actual</Label>
-                <Input id="stock" name="stock" type="number" placeholder="0" defaultValue={product?.stock_actual ?? ''} required />
+                <Label htmlFor="stock" className={!isEditing ? 'text-muted-foreground' : ''}>Stock Actual</Label>
+                {isEditing ? (
+                  <Input id="stock" name="stock" type="number" value={product?.stock_actual ?? 0} readOnly disabled className="bg-muted cursor-not-allowed" />
+                ) : (
+                  <div className="flex items-center h-10 px-3 rounded-md border border-dashed bg-muted/50">
+                    <p className="text-xs text-muted-foreground">
+                      Se gestiona por hotel en las entradas
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

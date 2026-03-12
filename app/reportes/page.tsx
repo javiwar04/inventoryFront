@@ -28,6 +28,7 @@ import { usePermissions } from "@/hooks/use-permissions"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SalesReportTab } from "@/components/sales-report-tab"
 import { SalesByLocation } from "@/components/sales-by-location"
+import { DailySalesStats } from "@/components/daily-sales-stats"
 
 export default function ReportsPage() {
   const { canView } = usePermissions()
@@ -470,6 +471,10 @@ export default function ReportsPage() {
                           <p className="text-xs text-muted-foreground mt-1">Stock adecuado</p>
                         </CardContent>
                       </Card>
+                    </div>
+
+                    <div className="mb-6">
+                      <DailySalesStats dateRange={dateRange} />
                     </div>
 
                     <div className="mb-6">
