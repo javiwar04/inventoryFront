@@ -47,13 +47,23 @@ export function ValorizedInventory() {
         categoriasService.getAll()
       ])
 
+      // Build lookup map from categories
+      const catLookup = new Map<number, string>()
+      for (const c of cats) {
+        catLookup.set(c.id, c.nombre)
+      }
+
       const items: ValorizedItem[] = productos
         .filter(p => p.activo && p.stock_actual > 0)
-        .map(p => ({
+        .map(p => {
+          const catNombre = (typeof p.categoria === 'object' && p.categoria?.nombre)
+            ? p.categoria.nombre
+            : catLookup.get(p.categoria_id) || 'Sin categoría'
+          return {
           id: p.id,
           sku: p.sku,
           nombre: p.nombre,
-          categoria: typeof p.categoria === 'object' && p.categoria ? p.categoria.nombre : 'Sin categoría',
+          categoria: catNombre,
           categoriaId: p.categoria_id,
           stockActual: p.stock_actual,
           costo: p.costo || 0,
@@ -61,7 +71,7 @@ export function ValorizedInventory() {
           valorCosto: p.stock_actual * (p.costo || 0),
           valorVenta: p.stock_actual * (p.precio || 0),
           margenPotencial: p.stock_actual * ((p.precio || 0) - (p.costo || 0))
-        }))
+        }})
         .sort((a, b) => b.valorCosto - a.valorCosto)
 
       // Agrupar por categoría

@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Loader2, PackageX, AlertTriangle, Clock, TrendingDown } from "lucide-react"
-import { productosService, salidasService, entradasService } from "@/lib/api"
+import { productosService, salidasService, entradasService, categoriasService } from "@/lib/api"
 import type { DateRange } from "react-day-picker"
 
 interface DeadStockItem {
@@ -38,11 +38,18 @@ export function DeadStockReport({ dateRange }: Props) {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [productos, salidasAll, entradasAll] = await Promise.all([
+      const [productos, salidasAll, entradasAll, categorias] = await Promise.all([
         productosService.getAll(),
         salidasService.getAll(1, 10000),
-        entradasService.getAll(1, 10000)
+        entradasService.getAll(1, 10000),
+        categoriasService.getAll()
       ])
+
+      // Build category lookup
+      const catLookup = new Map<number, string>()
+      for (const c of categorias) {
+        catLookup.set(c.id, c.nombre)
+      }
 
       const now = new Date()
       const items: DeadStockItem[] = productos
@@ -82,7 +89,7 @@ export function DeadStockReport({ dateRange }: Props) {
             id: p.id,
             nombre: p.nombre,
             sku: p.sku,
-            categoria: typeof p.categoria === 'object' && p.categoria ? p.categoria.nombre : 'Sin categoría',
+            categoria: (typeof p.categoria === 'object' && p.categoria?.nombre) ? p.categoria.nombre : catLookup.get(p.categoria_id) || 'Sin categoría',
             stockActual: p.stock_actual,
             costo: p.costo || 0,
             valorRetenido,

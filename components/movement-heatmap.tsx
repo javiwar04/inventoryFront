@@ -50,7 +50,8 @@ export function MovementHeatmap() {
       cutoff.setDate(cutoff.getDate() - 90)
 
       for (const e of entradas) {
-        const fecha = new Date(e.fechaEntrada)
+        // Use fechaCreacion (has time) if available, fallback to fechaEntrada (date-only)
+        const fecha = new Date(e.fechaCreacion || e.fechaEntrada)
         if (fecha < cutoff) continue
         const dayIdx = (fecha.getDay() + 6) % 7 // Lunes=0
         const hour = fecha.getHours()
@@ -62,7 +63,7 @@ export function MovementHeatmap() {
       }
 
       for (const s of salidas) {
-        const fecha = new Date(s.fechaSalida)
+        const fecha = new Date(s.fechaCreacion || s.fechaSalida)
         if (fecha < cutoff) continue
         const dayIdx = (fecha.getDay() + 6) % 7
         const hour = fecha.getHours()
