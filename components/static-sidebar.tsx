@@ -23,6 +23,8 @@ import {
   ChevronRight,
   ChevronLeft,
   ArrowLeftRight,
+  BookOpen,
+  DollarSign,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -103,6 +105,18 @@ const staticNavSections = [
         href: "/reportes",
         icon: TrendingUp,
         description: "Estadísticas y reportes",
+      },
+      {
+        title: "Kardex",
+        href: "/kardex",
+        icon: BookOpen,
+        description: "Movimientos por producto",
+      },
+      {
+        title: "Inv. Valorizado",
+        href: "/inventario-valorizado",
+        icon: DollarSign,
+        description: "Valor del inventario",
       },
     ],
   },

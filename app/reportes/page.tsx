@@ -29,6 +29,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SalesReportTab } from "@/components/sales-report-tab"
 import { SalesByLocation } from "@/components/sales-by-location"
 import { DailySalesStats } from "@/components/daily-sales-stats"
+import { ProfitabilityReport } from "@/components/profitability-report"
+import { DeadStockReport } from "@/components/dead-stock-report"
+import { HotelComparisonReport } from "@/components/hotel-comparison-report"
+import { SupplierAnalyticsReport } from "@/components/supplier-analytics-report"
+import { MovementHeatmap } from "@/components/movement-heatmap"
+import { PriceHistoryView } from "@/components/price-history-view"
 
 export default function ReportsPage() {
   const { canView } = usePermissions()
@@ -272,9 +278,15 @@ export default function ReportsPage() {
                       Visualiza estadísticas detalladas y genera reportes
                     </p>
                   </div>
-                  <TabsList>
+                  <TabsList className="flex-wrap h-auto gap-1">
                       <TabsTrigger value="inventario">Inventario General</TabsTrigger>
                       <TabsTrigger value="ventas">Ventas Detalladas</TabsTrigger>
+                      <TabsTrigger value="rentabilidad">Rentabilidad</TabsTrigger>
+                      <TabsTrigger value="inventario-muerto">Inventario Muerto</TabsTrigger>
+                      <TabsTrigger value="comparativo">Comparativo Hoteles</TabsTrigger>
+                      <TabsTrigger value="proveedores">Proveedores</TabsTrigger>
+                      <TabsTrigger value="precios">Historial Precios</TabsTrigger>
+                      <TabsTrigger value="heatmap">Mapa de Calor</TabsTrigger>
                   </TabsList>
               </div>
 
@@ -501,6 +513,30 @@ export default function ReportsPage() {
 
               <TabsContent value="ventas">
                   <SalesReportTab />
+              </TabsContent>
+
+              <TabsContent value="rentabilidad" className="space-y-6">
+                <ProfitabilityReport dateRange={dateRange} />
+              </TabsContent>
+
+              <TabsContent value="inventario-muerto" className="space-y-6">
+                <DeadStockReport dateRange={dateRange} />
+              </TabsContent>
+
+              <TabsContent value="comparativo" className="space-y-6">
+                <HotelComparisonReport dateRange={dateRange} />
+              </TabsContent>
+
+              <TabsContent value="proveedores" className="space-y-6">
+                <SupplierAnalyticsReport dateRange={dateRange} />
+              </TabsContent>
+
+              <TabsContent value="precios" className="space-y-6">
+                <PriceHistoryView />
+              </TabsContent>
+
+              <TabsContent value="heatmap" className="space-y-6">
+                <MovementHeatmap />
               </TabsContent>
 
             </Tabs>

@@ -7,10 +7,12 @@ import { StatsCard } from "@/components/stats-card"
 import { RecentMovements } from "@/components/recent-movements"
 import { InventoryChart } from "@/components/inventory-chart"
 import { TopSellingProducts } from "@/components/top-selling-products"
-import { Package, ArrowDownToLine, ArrowUpFromLine, TrendingUp, Loader2 } from "lucide-react"
+import { Package, ArrowDownToLine, ArrowUpFromLine, TrendingUp, Loader2, AlertTriangle, DollarSign, BarChart3 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
-import { statsService } from "@/lib/api"
+import { statsService, productosService, salidasService } from "@/lib/api"
 import { toast } from "sonner"
+import { LowStockAlert } from "@/components/low-stock-alert"
+import { MovementHeatmap } from "@/components/movement-heatmap"
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -18,7 +20,9 @@ export default function DashboardPage() {
     totalEntradas: 0,
     totalSalidas: 0,
     valorInventario: 0,
-    productosStockBajo: 0
+    productosStockBajo: 0,
+    margenEstimado: 0,
+    productosSinMovimiento: 0
   })
   const [loading, setLoading] = useState(true)
 
@@ -30,7 +34,38 @@ export default function DashboardPage() {
     try {
       setLoading(true)
       const data = await statsService.getDashboardStats()
-      setStats(data)
+
+      // Calculate estimated margin and dead stock count
+      let margen = 0
+      let sinMovimiento = 0
+      try {
+        const productos = await productosService.getAll()
+        const salidas = await salidasService.getAll()
+        const ahora = new Date()
+        const hace30 = new Date(ahora)
+        hace30.setDate(hace30.getDate() - 30)
+
+        const productosConSalida = new Set<number>()
+        salidas.forEach((s: any) => {
+          const fecha = new Date(s.fecha || s.fechaSalida)
+          if (fecha >= hace30) {
+            (s.detalles || []).forEach((d: any) => productosConSalida.add(d.productoId))
+          }
+        })
+
+        productos.forEach((p: any) => {
+          const precioVenta = p.precioVenta || p.precio || 0
+          const costo = p.precioCompra || p.costo || 0
+          if (precioVenta > 0 && costo > 0) {
+            margen += (precioVenta - costo) * (p.stock || p.cantidad || 0)
+          }
+          if (!productosConSalida.has(p.id)) {
+            sinMovimiento++
+          }
+        })
+      } catch {}
+
+      setStats({ ...data, margenEstimado: margen, productosSinMovimiento: sinMovimiento })
     } catch (err: any) {
       console.error('Error al cargar estadísticas:', err)
       toast.error('Error al cargar estadísticas')
@@ -78,7 +113,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <>
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-8">
                     <div className="glass-card rounded-2xl p-6 hover-lift smooth-transition">
                       <StatsCard
                         title="Total Productos"
@@ -115,6 +150,31 @@ export default function DashboardPage() {
                         icon={TrendingUp}
                       />
                     </div>
+                    <div className="glass-card rounded-2xl p-6 hover-lift smooth-transition">
+                      <StatsCard
+                        title="Margen Estimado"
+                        value={formatCurrency(stats.margenEstimado)}
+                        change="Ganancia potencial"
+                        changeType="positive"
+                        icon={DollarSign}
+                      />
+                    </div>
+                    <div className="glass-card rounded-2xl p-6 hover-lift smooth-transition">
+                      <StatsCard
+                        title="Sin Movimiento"
+                        value={stats.productosSinMovimiento.toString()}
+                        change="Últimos 30 días"
+                        changeType={stats.productosSinMovimiento > 5 ? "negative" : "positive"}
+                        icon={AlertTriangle}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Low Stock Alert */}
+                  <div className="mb-8">
+                    <div className="glass-card rounded-2xl p-6 hover-lift smooth-transition">
+                      <LowStockAlert limit={5} />
+                    </div>
                   </div>
 
                   {/* Charts Grid */}
@@ -132,8 +192,13 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Recent Movements */}
-                  <div className="glass-card rounded-2xl p-6 hover-lift smooth-transition">
+                  <div className="glass-card rounded-2xl p-6 hover-lift smooth-transition mb-8">
                     <RecentMovements />
+                  </div>
+
+                  {/* Movement Heatmap */}
+                  <div className="glass-card rounded-2xl p-6 hover-lift smooth-transition">
+                    <MovementHeatmap />
                   </div>
                 </>
               )}

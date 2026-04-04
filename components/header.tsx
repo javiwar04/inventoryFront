@@ -20,6 +20,8 @@ import { useState, useEffect } from "react"
 import { auditoriaService, type Auditorium } from "@/lib/api"
 import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
+import { AlertNotifications } from "@/components/alert-notifications"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function Header() {
   const { user, logout } = useAuth()
@@ -134,6 +136,12 @@ export function Header() {
 
         {/* Acciones del usuario */}
         <div className="flex items-center space-x-3 ml-6">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
+          {/* Alertas del sistema */}
+          <AlertNotifications />
+
           {/* Notificaciones */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
