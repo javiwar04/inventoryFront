@@ -457,27 +457,57 @@ const mapProductoFromBackend = (p: any): Producto => ({
   fecha_creacion: p.fechaCreacion || p.FechaCreacion
 })
 
+const extractApiCollection = (payload: any): any[] => {
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.data)) return payload.data
+  if (Array.isArray(payload?.items)) return payload.items
+  return []
+}
+
+const fetchAllProductosPages = async (pageSize: number = 100): Promise<Producto[]> => {
+  const normalizedPageSize = Math.max(1, pageSize)
+  const maxPages = 200
+  const seenIds = new Set<string>()
+  const allProductos: any[] = []
+
+  for (let currentPage = 1; currentPage <= maxPages; currentPage += 1) {
+    const response = await api.get(`/productos?page=${currentPage}&pageSize=${normalizedPageSize}`)
+    const pageData = extractApiCollection(response.data)
+
+    if (pageData.length === 0) break
+
+    let newItems = 0
+    for (const item of pageData) {
+      const itemKey = String(item?.id ?? item?.Id ?? item?.sku ?? item?.SKU ?? `${currentPage}-${newItems}`)
+      if (seenIds.has(itemKey)) continue
+      seenIds.add(itemKey)
+      allProductos.push(item)
+      newItems += 1
+    }
+
+    if (newItems === 0 || pageData.length < normalizedPageSize) break
+  }
+
+  return allProductos.map(mapProductoFromBackend)
+}
+
 export const productosService = {
   // Obtener productos paginados (por defecto página 1, 20 elementos)
   async getAll(page: number = 1, pageSize: number = 100): Promise<Producto[]> {
+    const fetchEveryPage = arguments.length === 0
+
+    if (fetchEveryPage) {
+      return fetchAllProductosPages(pageSize)
+    }
+
     const response = await api.get(`/productos?page=${page}&pageSize=${pageSize}`)
-    const data = Array.isArray(response.data) 
-      ? response.data 
-      : (response.data?.data || response.data?.items || [])
-    
-    if (!Array.isArray(data)) return []
+    const data = extractApiCollection(response.data)
     return data.map(mapProductoFromBackend)
   },
 
   // Obtener todos los productos sin paginación
   async getAllUnpaged(): Promise<Producto[]> {
-    const response = await api.get('/productos?page=1&pageSize=1000') // Traer muchos
-    const data = Array.isArray(response.data) 
-      ? response.data 
-      : (response.data?.data || response.data?.items || [])
-    
-    if (!Array.isArray(data)) return []
-    return data.map(mapProductoFromBackend)
+    return fetchAllProductosPages(200)
   },
 
   // Obtener producto por ID
