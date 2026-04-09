@@ -4,6 +4,11 @@ import { useEffect, useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,13 +17,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Pencil, Trash2, Eye, AlertTriangle, Loader2 } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Eye, AlertTriangle, Loader2, SlidersHorizontal } from "lucide-react"
 import { usePermissions } from "@/hooks/use-permissions"
 import { ProductDialog } from "@/components/product-dialog"
 import { ProductDetailsDialog } from "@/components/product-details-dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
-import { productosService, type Producto, registrarAuditoria, inventarioService, categoriasService } from "@/lib/api"
+import { productosService, type Producto, registrarAuditoria, inventarioService, categoriasService, proveedoresService, ajustesInventarioService } from "@/lib/api"
 
 interface ProductsTableProps { 
   search?: string 
@@ -38,6 +43,16 @@ export function ProductsTable({ search, categoryFilter, supplierFilter, stockFil
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [hotelStocks, setHotelStocks] = useState<Record<number, number>>({})
   const [categories, setCategories] = useState<Record<number, string>>({})
+  const [hoteles, setHoteles] = useState<Array<{ id: number; nombre: string }>>([])
+
+  const [adjustOpen, setAdjustOpen] = useState(false)
+  const [adjustProduct, setAdjustProduct] = useState<Producto | null>(null)
+  const [adjustHotelId, setAdjustHotelId] = useState<string>("")
+  const [adjustType, setAdjustType] = useState<'diferencia' | 'conteo_fisico'>('diferencia')
+  const [adjustValue, setAdjustValue] = useState<string>("")
+  const [adjustReason, setAdjustReason] = useState<string>('conteo_fisico')
+  const [adjustNotes, setAdjustNotes] = useState<string>("")
+  const [adjusting, setAdjusting] = useState(false)
 
   useEffect(() => {
     // Cargar categorías para mapear nombres si el backend no lo envía
@@ -45,6 +60,10 @@ export function ProductsTable({ search, categoryFilter, supplierFilter, stockFil
         const map: Record<number, string> = {}
         cats.forEach(c => map[c.id] = c.nombre)
         setCategories(map)
+    }).catch(console.error)
+
+    proveedoresService.getAll().then(hs => {
+      setHoteles(hs.filter(h => h.estado === 'Activo').map(h => ({ id: h.id, nombre: h.nombre })))
     }).catch(console.error)
   }, [])
 
@@ -136,6 +155,98 @@ export function ProductsTable({ search, categoryFilter, supplierFilter, stockFil
     return { label: "En Stock", variant: "default" as const }
   }
 
+  const openAdjustDialog = (product: Producto) => {
+    setAdjustProduct(product)
+    setAdjustType('diferencia')
+    setAdjustValue('')
+    setAdjustReason('conteo_fisico')
+    setAdjustNotes('')
+    if (hotelFilter && hotelFilter !== 'all') {
+      setAdjustHotelId(hotelFilter)
+    } else {
+      setAdjustHotelId('')
+    }
+    setAdjustOpen(true)
+  }
+
+  const handleAdjustStock = async () => {
+    if (!adjustProduct) return
+    if (!adjustHotelId) {
+      toast.error('Selecciona un hotel para ajustar stock')
+      return
+    }
+    if (!adjustReason.trim()) {
+      toast.error('Selecciona o escribe un motivo de ajuste')
+      return
+    }
+
+    const parsedValue = Number(adjustValue)
+    if (Number.isNaN(parsedValue)) {
+      toast.error('Ingresa un valor válido para el ajuste')
+      return
+    }
+    if (adjustType === 'conteo_fisico' && parsedValue < 0) {
+      toast.error('El conteo físico no puede ser negativo')
+      return
+    }
+    if (adjustType === 'diferencia' && parsedValue === 0) {
+      toast.error('La diferencia no puede ser 0')
+      return
+    }
+
+    setAdjusting(true)
+    try {
+      const payload = {
+        hotelId: Number(adjustHotelId),
+        productoId: adjustProduct.id,
+        tipoAjuste: adjustType,
+        cantidad: adjustType === 'diferencia' ? parsedValue : undefined,
+        stockFisico: adjustType === 'conteo_fisico' ? parsedValue : undefined,
+        motivo: adjustReason,
+        observaciones: adjustNotes || undefined,
+      }
+
+      const result = await ajustesInventarioService.create(payload)
+
+      try {
+        await registrarAuditoria({
+          accion: 'create',
+          modulo: 'inventario',
+          descripcion: `Ajuste de stock de ${adjustProduct.nombre} en hotel #${adjustHotelId}. ${result.stockAnterior} -> ${result.stockNuevo}`,
+          detalles: JSON.stringify(payload),
+          registroId: result.id,
+        })
+      } catch (auditErr) {
+        console.warn('No se pudo registrar auditoría del ajuste', auditErr)
+      }
+
+      toast.success('Ajuste de stock aplicado', {
+        description: `Stock: ${result.stockAnterior} -> ${result.stockNuevo}`,
+      })
+
+      if (hotelFilter && hotelFilter !== 'all') {
+        inventarioService.getByHotel(parseInt(hotelFilter))
+          .then(data => {
+            const map: Record<number, number> = {}
+            data.forEach(x => map[x.productoId] = x.stock)
+            setHotelStocks(map)
+          })
+          .catch(console.error)
+      }
+
+      const refreshed = await productosService.getAll()
+      setItems(refreshed)
+
+      setAdjustOpen(false)
+      setAdjustProduct(null)
+    } catch (err: any) {
+      const apiMessage = err?.response?.data?.message || err?.message || 'No se pudo aplicar el ajuste'
+      toast.error('Error al ajustar stock', { description: apiMessage })
+    } finally {
+      setAdjusting(false)
+    }
+  }
+
   return (
     <div className="rounded-lg border bg-card">
       {/* Dialog for edit product */}
@@ -206,6 +317,92 @@ export function ProductsTable({ search, categoryFilter, supplierFilter, stockFil
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajustar stock</DialogTitle>
+            <DialogDescription>
+              {adjustProduct
+                ? `Producto: ${adjustProduct.nombre} (${adjustProduct.sku})`
+                : 'Selecciona los datos del ajuste'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            <div className="space-y-2">
+              <Label>Hotel</Label>
+              <Select value={adjustHotelId} onValueChange={setAdjustHotelId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona hotel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {hoteles.map(h => (
+                    <SelectItem key={h.id} value={h.id.toString()}>{h.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tipo de ajuste</Label>
+              <Select value={adjustType} onValueChange={(v) => setAdjustType(v as 'diferencia' | 'conteo_fisico')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="diferencia">Diferencia (+ / -)</SelectItem>
+                  <SelectItem value="conteo_fisico">Conteo físico (stock final)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{adjustType === 'diferencia' ? 'Cantidad de diferencia' : 'Stock físico final'}</Label>
+              <Input
+                type="number"
+                value={adjustValue}
+                onChange={(e) => setAdjustValue(e.target.value)}
+                placeholder={adjustType === 'diferencia' ? 'Ejemplo: -3 o 10' : 'Ejemplo: 45'}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Motivo</Label>
+              <Select value={adjustReason} onValueChange={setAdjustReason}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="conteo_fisico">Conteo físico</SelectItem>
+                  <SelectItem value="merma">Merma</SelectItem>
+                  <SelectItem value="danio">Daño</SelectItem>
+                  <SelectItem value="vencimiento">Vencimiento</SelectItem>
+                  <SelectItem value="regularizacion">Regularización</SelectItem>
+                  <SelectItem value="ajuste_administrativo">Ajuste administrativo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Observaciones</Label>
+              <Textarea
+                value={adjustNotes}
+                onChange={(e) => setAdjustNotes(e.target.value)}
+                placeholder="Opcional"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustOpen(false)} disabled={adjusting}>Cancelar</Button>
+            <Button onClick={handleAdjustStock} disabled={adjusting}>
+              {adjusting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Aplicar ajuste
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Table>
         <TableHeader>
           <TableRow>
@@ -274,6 +471,12 @@ export function ProductsTable({ search, categoryFilter, supplierFilter, stockFil
                         <DropdownMenuItem onClick={() => setSelected(product)}>
                           <Pencil className="mr-2 h-4 w-4" />
                           Editar
+                        </DropdownMenuItem>
+                      )}
+                      {canEdit("productos") && (
+                        <DropdownMenuItem onClick={() => openAdjustDialog(product)}>
+                          <SlidersHorizontal className="mr-2 h-4 w-4" />
+                          Ajustar stock
                         </DropdownMenuItem>
                       )}
                       {canDelete("productos") && (

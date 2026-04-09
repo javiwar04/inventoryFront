@@ -860,6 +860,28 @@ export interface InventarioHotel {
   ultimaActualizacion: string
 }
 
+export interface AjusteInventarioRequest {
+  hotelId: number
+  productoId: number
+  tipoAjuste: 'diferencia' | 'conteo_fisico'
+  cantidad?: number
+  stockFisico?: number
+  motivo: string
+  observaciones?: string
+}
+
+export interface AjusteInventarioResponse {
+  id: number
+  hotelId: number
+  productoId: number
+  stockAnterior: number
+  stockNuevo: number
+  diferenciaAplicada: number
+  motivo: string
+  observaciones?: string | null
+  fechaAjuste?: string
+}
+
 export const inventarioService = {
   async getByProducto(id: number): Promise<InventarioHotel[]> {
     const response = await api.get(`/inventario/producto/${id}`)
@@ -868,6 +890,13 @@ export const inventarioService = {
 
   async getByHotel(hotelId: number): Promise<{ productoId: number; stock: number }[]> {
     const response = await api.get(`/inventario/hotel/${hotelId}`)
+    return response.data
+  }
+}
+
+export const ajustesInventarioService = {
+  async create(payload: AjusteInventarioRequest): Promise<AjusteInventarioResponse> {
+    const response = await api.post('/inventario/ajustes', payload)
     return response.data
   }
 }
