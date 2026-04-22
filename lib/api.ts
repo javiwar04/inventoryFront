@@ -57,6 +57,7 @@ export interface Producto {
   unidad: string
   fecha_vencimiento: string | null
   activo: boolean
+  estado?: string
   fecha_creacion: string
 }
 
@@ -437,6 +438,23 @@ export const permisosService = {
 // SERVICIOS DE PRODUCTOS 
 // ============================================================================
 
+const normalizeEstadoProducto = (value: unknown): string => {
+  if (typeof value !== 'string') return ''
+  return value.trim().toLowerCase()
+}
+
+const normalizeProductoActivo = (p: any): boolean => {
+  if (typeof p?.activo === 'boolean') return p.activo
+  if (typeof p?.Activo === 'boolean') return p.Activo
+  if (typeof p?.activo === 'number') return p.activo === 1
+  if (typeof p?.Activo === 'number') return p.Activo === 1
+
+  const estado = normalizeEstadoProducto(p?.estado ?? p?.Estado)
+  if (estado) return estado === 'activo'
+
+  return true
+}
+
 // Helper para mapear PascalCase del backend a snake_case del frontend
 const mapProductoFromBackend = (p: any): Producto => ({
   id: p.id,
@@ -453,7 +471,8 @@ const mapProductoFromBackend = (p: any): Producto => ({
   stock_minimo: p.stockMinimo || p.StockMinimo,
   unidad: p.unidad || p.UnidadMedida,
   fecha_vencimiento: p.fechaVencimiento || p.FechaVencimiento,
-  activo: p.activo || p.Activo || p.estado === 'activo',
+  activo: normalizeProductoActivo(p),
+  estado: normalizeEstadoProducto(p.estado ?? p.Estado) || (normalizeProductoActivo(p) ? 'activo' : 'inactivo'),
   fecha_creacion: p.fechaCreacion || p.FechaCreacion
 })
 
@@ -780,7 +799,7 @@ export const categoriasService = {
 export const statsService = {
   // Obtener estadísticas generales del dashboard
   async getDashboardStats(): Promise<{
-    totalProductos: number
+    totalProductosActivos: number
     totalEntradas: number
     totalSalidas: number
     valorInventario: number
@@ -808,18 +827,20 @@ export const statsService = {
       return d.getUTCFullYear() === currentYear && d.getUTCMonth() === currentMonth
     }).length
 
-    const valorInventario = productos.reduce((sum, p) => {
+    const productosActivos = productos.filter(p => p.activo)
+
+    const valorInventario = productosActivos.reduce((sum, p) => {
       const stock = Number(p.stock_actual) || 0
       const costo = Number(p.costo) || Number(p.precio) || 0
       return sum + (stock * costo)
     }, 0)
 
-    const stockBajo = productos.filter(p => 
-      p.stock_actual <= p.stock_minimo
+    const stockBajo = productosActivos.filter(p => 
+      p.activo && p.stock_actual <= p.stock_minimo
     ).length
 
     return {
-      totalProductos: productos.length,
+      totalProductosActivos: productosActivos.length,
       totalEntradas: entradasMes,
       totalSalidas: salidasMes,
       valorInventario,
@@ -830,7 +851,7 @@ export const statsService = {
   // Obtener productos con stock bajo
   async getProductosStockBajo(): Promise<Producto[]> {
     const productos = await productosService.getAll()
-    return productos.filter(p => p.stock_actual <= p.stock_minimo)
+    return productos.filter(p => p.activo && p.stock_actual <= p.stock_minimo)
   },
 
   // Obtener movimientos recientes (últimas entradas y salidas)

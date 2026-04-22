@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { statsService, vencimientosService } from "@/lib/api"
+import { productosService, statsService, vencimientosService } from "@/lib/api"
 import { useRouter } from "next/navigation"
 
 interface Alert {
@@ -65,8 +65,13 @@ export function AlertNotifications() {
 
       // Vencimientos
       try {
-        const vencimientos = await vencimientosService.getAll()
+        const [vencimientos, productos] = await Promise.all([
+          vencimientosService.getAll(),
+          productosService.getAll(),
+        ])
+        const activeProductIds = new Set(productos.filter(producto => producto.activo).map(producto => producto.id))
         const criticos = vencimientos.filter(v => {
+          if (!activeProductIds.has(v.id)) return false
           if (!v.fechaVencimiento) return false
           const dias = Math.ceil((new Date(v.fechaVencimiento).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
           return dias <= 7

@@ -15,7 +15,7 @@ import { MovementHeatmap } from "@/components/movement-heatmap"
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
-    totalProductos: 0,
+    totalProductosActivos: 0,
     totalEntradas: 0,
     totalSalidas: 0,
     valorInventario: 0,
@@ -82,8 +82,8 @@ export default function DashboardPage() {
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
                     <div className="glass-card rounded-2xl p-6 hover-lift smooth-transition">
                       <StatsCard
-                        title="Total Productos"
-                        value={stats.totalProductos.toString()}
+                        title="Productos Activos"
+                        value={stats.totalProductosActivos.toString()}
                         change={`${stats.productosStockBajo} con stock bajo`}
                         changeType={stats.productosStockBajo > 0 ? "negative" : "positive"}
                         icon={Package}
@@ -109,9 +109,9 @@ export default function DashboardPage() {
                     </div>
                     <div className="glass-card rounded-2xl p-6 hover-lift smooth-transition">
                       <StatsCard
-                        title="Valor Inventario"
+                        title="Valor Inventario Activo"
                         value={formatCurrency(stats.valorInventario)}
-                        change="Costo total"
+                        change="Costo total de activos"
                         changeType="positive"
                         icon={TrendingUp}
                       />
