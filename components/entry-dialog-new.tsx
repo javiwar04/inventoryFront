@@ -57,7 +57,16 @@ export function EntryDialogNew() {
         productosService.getAll(),
         proveedoresService.getAll()
       ])
-      setProductos(prods)
+
+      const productosActivos = prods.filter((p: any) => {
+        const estado = (p.estado ?? p.Estado ?? '').toString().toLowerCase()
+        if (estado) return estado === 'activo'
+        if (typeof p.activo === 'boolean') return p.activo
+        if (typeof p.Activo === 'boolean') return p.Activo
+        return true
+      })
+
+      setProductos(productosActivos)
       setProveedores(provs.filter(p => p.estado?.toLowerCase() === 'activo'))
     } catch (err) {
       console.error('Error al cargar datos:', err)
