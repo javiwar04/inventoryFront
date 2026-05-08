@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DateRangePicker } from "@/components/date-range-picker"
 import { salidasService, proveedoresService, Salida } from "@/lib/api"
-import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye, ChevronLeft, ChevronRight, Banknote, Edit, Save } from "lucide-react"
+import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Banknote, Edit, Save, Package } from "lucide-react"
 import { toast } from "sonner"
 import { DateRange } from "react-day-picker"
 import * as XLSX from 'xlsx'
@@ -21,6 +21,23 @@ export function SalesReportTab() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   
+  // Expanded rows
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
+
+  const toggleRow = (id: number) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const getProductName = (d: { producto: string | { id: number; nombre: string; sku: string } | null; productoId: number }) => {
+    if (typeof d.producto === 'string') return d.producto
+    return d.producto?.nombre || `Producto #${d.productoId}`
+  }
+
   // Edit Payment State
   const [editPaymentOpen, setEditPaymentOpen] = useState(false)
   const [selectedSaleForEdit, setSelectedSaleForEdit] = useState<Salida | null>(null)
@@ -172,22 +189,58 @@ export function SalesReportTab() {
   }
 
   const handleExportExcel = () => {
-    const data = filteredSales.map(s => ({
+    // Sheet 1: Resumen de ventas
+    const resumen = filteredSales.map(s => ({
         Fecha: s.fechaSalida ? s.fechaSalida.split('T')[0].split('-').reverse().join('/') : '',
         Ticket: s.numeroSalida,
         Cliente: s.cliente || 'Consumidor Final',
-        Hotel: s.destino || 'N/A',
-        MetodoPago: s.metodoPago || 'N/A',
-        Total: s.total || 0,
-        Items: s.detalles?.length || s.detalleSalida?.length || 0,
+        Sede: s.destino || 'N/A',
+        'Método de Pago': s.metodoPago || 'N/A',
+        'Total (Q)': s.total || 0,
+        'Cant. Productos': (s.detalleSalida || s.detalles || []).length,
         Observaciones: s.observaciones || ''
     }))
 
-    const ws = XLSX.utils.json_to_sheet(data)
+    // Sheet 2: Detalle de productos por venta
+    const detalle: object[] = []
+    filteredSales.forEach(s => {
+        const items = s.detalleSalida || s.detalles || []
+        const fecha = s.fechaSalida ? s.fechaSalida.split('T')[0].split('-').reverse().join('/') : ''
+        if (items.length === 0) {
+            detalle.push({
+                Fecha: fecha,
+                Ticket: s.numeroSalida,
+                Cliente: s.cliente || 'Consumidor Final',
+                Sede: s.destino || 'N/A',
+                Producto: '(Sin detalle)',
+                Cantidad: '',
+                'P. Unitario (Q)': '',
+                'Subtotal (Q)': ''
+            })
+        } else {
+            items.forEach(d => {
+                const nombre = typeof d.producto === 'string'
+                    ? d.producto
+                    : d.producto?.nombre || `Producto #${d.productoId}`
+                detalle.push({
+                    Fecha: fecha,
+                    Ticket: s.numeroSalida,
+                    Cliente: s.cliente || 'Consumidor Final',
+                    Sede: s.destino || 'N/A',
+                    Producto: nombre,
+                    Cantidad: d.cantidad,
+                    'P. Unitario (Q)': d.precioUnitario ?? '',
+                    'Subtotal (Q)': d.subtotal ?? ''
+                })
+            })
+        }
+    })
+
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "Ventas")
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumen), "Ventas")
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detalle), "Detalle Productos")
     XLSX.writeFile(wb, `Reporte_Ventas_${new Date().toISOString().split('T')[0]}.xlsx`)
-    toast.success("Reporte Exportado")
+    toast.success("Reporte exportado con detalle de productos")
   }
 // Pagination Logic
   const totalPages = Math.ceil(filteredSales.length / itemsPerPage)
@@ -302,6 +355,7 @@ export function SalesReportTab() {
             <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="w-8"></TableHead>
                         <TableHead>Fecha</TableHead>
                         <TableHead>Ticket #</TableHead>
                         <TableHead>Sede</TableHead>
@@ -325,38 +379,86 @@ export function SalesReportTab() {
                             </TableCell>
                         </TableRow>
                     ) : (
-                        paginatedSales.map((sale) => (
-                            <TableRow key={sale.id}>
-                                <TableCell>
-                                    {sale.fechaSalida ? (() => {
-                                        const datePart = sale.fechaSalida.split('T')[0];
-                                        const [year, month, day] = datePart.split('-');
-                                        return `${day}/${month}/${year}`;
-                                    })() : ''}
-                                </TableCell>
-                                <TableCell className="font-mono text-xs">{sale.numeroSalida}</TableCell>
-                                <TableCell>{sale.destino}</TableCell>
-                                <TableCell>{sale.cliente || 'CF'}</TableCell>
-                                <TableCell>{sale.metodoPago}</TableCell>
-                                <TableCell className="text-right font-medium">Q{(sale.total || 0).toFixed(2)}</TableCell>
-                                <TableCell className="text-center">
-                                    <div className="flex justify-center gap-1">
-                                        <Button size="sm" variant="ghost" onClick={() => openEditPayment(sale)} title="Editar Método de Pago">
-                                            <Edit className="h-4 w-4 text-blue-500" />
-                                        </Button>
-                                        <Button size="sm" variant="ghost" onClick={() => {
-                                            const result = generarFacturaPDF(sale, 'Selvamo', true)
-                                            if (result) setPreviewUrl(result.toString())
-                                        }} title="Ver Factura">
-                                            <Eye className="h-4 w-4" />
-                                        </Button>
-                                        <Button size="sm" variant="ghost" onClick={() => generarFacturaPDF(sale, 'Selvamo')} title="Descargar Factura">
-                                            <Printer className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ))
+                        paginatedSales.flatMap((sale) => {
+                            const details = sale.detalleSalida || sale.detalles || []
+                            const isExpanded = expandedRows.has(sale.id)
+                            return [
+                                <TableRow key={sale.id} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRow(sale.id)}>
+                                    <TableCell className="w-8">
+                                        {isExpanded
+                                            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                            : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                                    </TableCell>
+                                    <TableCell>
+                                        {sale.fechaSalida ? (() => {
+                                            const datePart = sale.fechaSalida.split('T')[0];
+                                            const [year, month, day] = datePart.split('-');
+                                            return `${day}/${month}/${year}`;
+                                        })() : ''}
+                                    </TableCell>
+                                    <TableCell className="font-mono text-xs">{sale.numeroSalida}</TableCell>
+                                    <TableCell>{sale.destino}</TableCell>
+                                    <TableCell>{sale.cliente || 'CF'}</TableCell>
+                                    <TableCell>{sale.metodoPago}</TableCell>
+                                    <TableCell className="text-right font-medium">Q{(sale.total || 0).toFixed(2)}</TableCell>
+                                    <TableCell className="text-center" onClick={e => e.stopPropagation()}>
+                                        <div className="flex justify-center gap-1">
+                                            <Button size="sm" variant="ghost" onClick={() => openEditPayment(sale)} title="Editar Método de Pago">
+                                                <Edit className="h-4 w-4 text-blue-500" />
+                                            </Button>
+                                            <Button size="sm" variant="ghost" onClick={() => {
+                                                const result = generarFacturaPDF(sale, 'Selvamo', true)
+                                                if (result) setPreviewUrl(result.toString())
+                                            }} title="Ver Factura">
+                                                <Eye className="h-4 w-4" />
+                                            </Button>
+                                            <Button size="sm" variant="ghost" onClick={() => generarFacturaPDF(sale, 'Selvamo')} title="Descargar Factura">
+                                                <Printer className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>,
+                                isExpanded && (
+                                    <TableRow key={`${sale.id}-detail`} className="bg-muted/30">
+                                        <TableCell colSpan={8} className="py-2 px-6">
+                                            {details.length === 0 ? (
+                                                <p className="text-xs text-muted-foreground flex items-center gap-1 py-1">
+                                                    <Package className="h-3 w-3" /> Sin detalle de productos disponible.
+                                                </p>
+                                            ) : (
+                                                <table className="w-full text-xs">
+                                                    <thead>
+                                                        <tr className="text-muted-foreground border-b">
+                                                            <th className="text-left py-1 font-medium">Producto</th>
+                                                            <th className="text-center py-1 font-medium">Cantidad</th>
+                                                            <th className="text-right py-1 font-medium">P. Unitario</th>
+                                                            <th className="text-right py-1 font-medium">Subtotal</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {details.map((d, i) => (
+                                                            <tr key={i} className="border-b border-dashed last:border-0">
+                                                                <td className="py-1 flex items-center gap-1">
+                                                                    <Package className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                                    {getProductName(d)}
+                                                                </td>
+                                                                <td className="text-center py-1">{d.cantidad}</td>
+                                                                <td className="text-right py-1">
+                                                                    {d.precioUnitario != null ? `Q${d.precioUnitario.toFixed(2)}` : '—'}
+                                                                </td>
+                                                                <td className="text-right py-1 font-medium">
+                                                                    {d.subtotal != null ? `Q${d.subtotal.toFixed(2)}` : '—'}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            ].filter(Boolean)
+                        })
                     )}
                 </TableBody>
             </Table>
