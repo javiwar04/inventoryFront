@@ -189,44 +189,28 @@ export function SalesReportTab() {
   }
 
   const handleExportExcel = () => {
-    // Sheet 1: Resumen de ventas
-    const resumen = filteredSales.map(s => ({
-        Fecha: s.fechaSalida ? s.fechaSalida.split('T')[0].split('-').reverse().join('/') : '',
-        Ticket: s.numeroSalida,
-        Cliente: s.cliente || 'Consumidor Final',
-        Sede: s.destino || 'N/A',
-        'Método de Pago': s.metodoPago || 'N/A',
-        'Total (Q)': s.total || 0,
-        'Cant. Productos': (s.detalleSalida || s.detalles || []).length,
-        Observaciones: s.observaciones || ''
-    }))
-
-    // Sheet 2: Detalle de productos por venta
-    const detalle: object[] = []
+    const rows: object[] = []
     filteredSales.forEach(s => {
         const items = s.detalleSalida || s.detalles || []
         const fecha = s.fechaSalida ? s.fechaSalida.split('T')[0].split('-').reverse().join('/') : ''
+        const base = {
+            Fecha: fecha,
+            Ticket: s.numeroSalida,
+            Cliente: s.cliente || 'Consumidor Final',
+            Sede: s.destino || 'N/A',
+            'Método de Pago': s.metodoPago || 'N/A',
+            'Total Venta (Q)': s.total || 0,
+        }
         if (items.length === 0) {
-            detalle.push({
-                Fecha: fecha,
-                Ticket: s.numeroSalida,
-                Cliente: s.cliente || 'Consumidor Final',
-                Sede: s.destino || 'N/A',
-                Producto: '(Sin detalle)',
-                Cantidad: '',
-                'P. Unitario (Q)': '',
-                'Subtotal (Q)': ''
-            })
+            rows.push({ ...base, Producto: '(Sin detalle)', Cantidad: '', 'P. Unitario (Q)': '', 'Subtotal (Q)': '' })
         } else {
-            items.forEach(d => {
+            items.forEach((d, i) => {
                 const nombre = typeof d.producto === 'string'
                     ? d.producto
                     : d.producto?.nombre || `Producto #${d.productoId}`
-                detalle.push({
-                    Fecha: fecha,
-                    Ticket: s.numeroSalida,
-                    Cliente: s.cliente || 'Consumidor Final',
-                    Sede: s.destino || 'N/A',
+                rows.push({
+                    // Solo mostrar datos de cabecera en la primera línea de cada venta
+                    ...i === 0 ? base : { Fecha: '', Ticket: '', Cliente: '', Sede: '', 'Método de Pago': '', 'Total Venta (Q)': '' },
                     Producto: nombre,
                     Cantidad: d.cantidad,
                     'P. Unitario (Q)': d.precioUnitario ?? '',
@@ -237,10 +221,9 @@ export function SalesReportTab() {
     })
 
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumen), "Ventas")
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detalle), "Detalle Productos")
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Ventas Detalladas")
     XLSX.writeFile(wb, `Reporte_Ventas_${new Date().toISOString().split('T')[0]}.xlsx`)
-    toast.success("Reporte exportado con detalle de productos")
+    toast.success("Reporte exportado")
   }
 // Pagination Logic
   const totalPages = Math.ceil(filteredSales.length / itemsPerPage)
