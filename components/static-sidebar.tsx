@@ -25,6 +25,7 @@ import {
   ArrowLeftRight,
   BookOpen,
   DollarSign,
+  Tag,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -64,6 +65,12 @@ const staticNavSections = [
         href: "/salidas",
         icon: ArrowUpFromLine,
         description: "Registro de ventas",
+      },
+      {
+        title: "Promociones",
+        href: "/promociones",
+        icon: Tag,
+        description: "Combos a precio fijo",
       },
       {
         title: "Transferencias",

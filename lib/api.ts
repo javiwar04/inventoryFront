@@ -793,6 +793,94 @@ export const categoriasService = {
 }
 
 // ============================================================================
+// SERVICIOS DE PROMOCIONES (combos a precio fijo y temporal)
+// ============================================================================
+
+export interface PromocionDetalle {
+  productoId: number
+  producto?: string
+  cantidad: number
+  precioUnitarioActual?: number
+}
+
+export interface Promocion {
+  id: number
+  nombre: string
+  descripcion?: string | null
+  precio: number
+  fechaInicio: string // yyyy-mm-dd
+  fechaFin: string    // yyyy-mm-dd
+  estado: string      // 'activa' | 'inactiva'
+  vigente?: boolean
+  detalles: PromocionDetalle[]
+}
+
+export interface PromocionInput {
+  nombre: string
+  descripcion?: string
+  precio: number
+  fechaInicio: string
+  fechaFin: string
+  estado?: string
+  creadoPor?: number
+  detalles: { productoId: number; cantidad: number }[]
+}
+
+export interface VenderPromocionInput {
+  cantidad: number
+  numeroSalida: string
+  fechaSalida: string
+  destino?: string
+  metodoPago?: string
+  cliente?: string
+  observaciones?: string
+  creadoPor: number
+}
+
+export const promocionesService = {
+  async getAll(): Promise<Promocion[]> {
+    const response = await api.get('/promociones')
+    if (Array.isArray(response.data)) return response.data
+    if (response.data?.data && Array.isArray(response.data.data)) return response.data.data
+    return []
+  },
+
+  async getVigentes(): Promise<Promocion[]> {
+    const response = await api.get('/promociones/vigentes')
+    if (Array.isArray(response.data)) return response.data
+    return []
+  },
+
+  async getById(id: number): Promise<Promocion> {
+    const response = await api.get(`/promociones/${id}`)
+    return response.data
+  },
+
+  async create(promo: PromocionInput): Promise<Promocion> {
+    const response = await api.post('/promociones', promo)
+    return response.data
+  },
+
+  async update(id: number, promo: PromocionInput): Promise<void> {
+    await api.put(`/promociones/${id}`, promo)
+  },
+
+  async setEstado(id: number, estado: 'activa' | 'inactiva'): Promise<void> {
+    await api.patch(`/promociones/${id}/estado`, { estado })
+  },
+
+  async delete(id: number): Promise<void> {
+    await api.delete(`/promociones/${id}`)
+  },
+
+  // Vende la promo: genera una Salida descontando stock y cobrando el precio fijo
+  async vender(id: number, venta: VenderPromocionInput): Promise<Salida> {
+    const response = await api.post(`/promociones/${id}/vender`, venta)
+    return response.data
+  }
+}
+
+// ============================================================================
 // SERVICIOS DE DASHBOARDS Y ESTADÍSTICAS
 // ============================================================================
 
