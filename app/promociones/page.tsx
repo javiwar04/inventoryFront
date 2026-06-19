@@ -34,6 +34,8 @@ const fmtQ = (n: number) => `Q${(n ?? 0).toFixed(2)}`
 
 export default function PromocionesPage() {
   const { user } = useAuth()
+  // Solo los administradores pueden crear/editar/activar/eliminar; los empleados solo venden.
+  const esAdmin = user?.rol === "admin" || user?.rol === "administrador"
 
   const [promos, setPromos] = useState<Promocion[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
@@ -226,8 +228,9 @@ export default function PromocionesPage() {
     }
   }
 
+  // Solo productos activos y que no estén ya en el combo
   const productosDisponibles = productos.filter(
-    (p) => !detalles.some((d) => d.productoId === p.id)
+    (p) => p.activo && !detalles.some((d) => d.productoId === p.id)
   )
 
   return (
@@ -244,9 +247,11 @@ export default function PromocionesPage() {
                   Combos a precio fijo y temporal (ej. 2 camisas por Q250).
                 </p>
               </div>
-              <Button onClick={openCreate}>
-                <Plus className="mr-2 h-4 w-4" /> Nueva Promoción
-              </Button>
+              {esAdmin && (
+                <Button onClick={openCreate}>
+                  <Plus className="mr-2 h-4 w-4" /> Nueva Promoción
+                </Button>
+              )}
             </div>
 
             {loading ? (
@@ -329,15 +334,19 @@ export default function PromocionesPage() {
                                   <Button size="sm" variant="default" disabled={!p.vigente} onClick={() => openSell(p)}>
                                     <ShoppingCart className="mr-1 h-4 w-4" /> Vender
                                   </Button>
-                                  <Button size="icon" variant="ghost" title="Activar/Desactivar" onClick={() => toggleEstado(p)}>
-                                    <Power className="h-4 w-4" />
-                                  </Button>
-                                  <Button size="icon" variant="ghost" title="Editar" onClick={() => openEdit(p)}>
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  <Button size="icon" variant="ghost" title="Eliminar" onClick={() => handleDelete(p)}>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
+                                  {esAdmin && (
+                                    <>
+                                      <Button size="icon" variant="ghost" title="Activar/Desactivar" onClick={() => toggleEstado(p)}>
+                                        <Power className="h-4 w-4" />
+                                      </Button>
+                                      <Button size="icon" variant="ghost" title="Editar" onClick={() => openEdit(p)}>
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Button size="icon" variant="ghost" title="Eliminar" onClick={() => handleDelete(p)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </>
+                                  )}
                                 </div>
                               </TableCell>
                             </TableRow>
