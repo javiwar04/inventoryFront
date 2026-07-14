@@ -198,14 +198,16 @@ export function ExitDialogNew() {
   const agregarPago = () => {
     const monto = Number(montoPagoParcial)
     if (monto <= 0) return toast.error("Monto inválido")
+    if (pagos.some(pago => pago.metodo === metodoPagoParcial)) {
+      return toast.error("Ese método de pago ya fue agregado")
+    }
     
     // Check coverage
     const totalVenta = getTotalVenta()
     const totalPagado = pagos.reduce((sum, p) => sum + p.monto, 0)
     
-    // Warn if overpaying (allow it? usually systems block or calculate change, let's just warn for now or block extreme)
-    if (totalPagado + monto > totalVenta + 0.5) { 
-         // Optional: toast.warning("El monto supera el total")
+    if (totalPagado + monto > totalVenta + 0.01) {
+      return toast.error("El monto supera el total de la venta")
     }
 
     setPagos([...pagos, { metodo: metodoPagoParcial, monto }])
@@ -245,8 +247,12 @@ export function ExitDialogNew() {
 
     if (isPagoDividido) {
         const totalPagado = pagos.reduce((sum, p) => sum + p.monto, 0)
-        if (Math.abs(totalPagado - total) > 0.1) {
-             toast.error(`Pagos incompletos`, { description: `Faltan Q${(total - totalPagado).toFixed(2)} por cubrir` })
+        if (pagos.length < 2) {
+             toast.error("Agrega al menos dos métodos para un pago dividido")
+             return
+        }
+        if (Math.abs(totalPagado - total) > 0.01) {
+             toast.error(`Los pagos no cuadran`, { description: `Diferencia: Q${Math.abs(total - totalPagado).toFixed(2)}` })
              return
         }
         finalMetodoPago = pagos.map(p => `${p.metodo}: Q${p.monto.toFixed(2)}`).join(' | ')
@@ -331,7 +337,9 @@ export function ExitDialogNew() {
         window.dispatchEvent(new CustomEvent('salidas:created'))
     } catch (err: any) {
         console.error('Error saving sale:', err)
-        toast.error('Error al guardar', { description: err.message || 'Ocurrió un error desconocido' })
+        toast.error('Error al guardar', {
+            description: err?.response?.data?.message || err?.response?.data || err.message || 'Ocurrió un error desconocido'
+        })
     } finally {
         setSaving(false)
     }

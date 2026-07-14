@@ -9,12 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DateRangePicker } from "@/components/date-range-picker"
 import { salidasService, proveedoresService, Salida } from "@/lib/api"
-import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Banknote, Edit, Save, Package } from "lucide-react"
+import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Banknote, Edit, Save, Package, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { DateRange } from "react-day-picker"
 import * as XLSX from 'xlsx'
 import { generarComandaPDF, generarFacturaPDF } from "@/lib/export-utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
+import {
+  PAYMENT_METHODS,
+  PaymentAllocation,
+  PaymentMethod,
+  canonicalizePaymentMethod,
+  formatSplitPayment,
+  matchesPaymentFilter,
+  parsePaymentMethod,
+} from "@/lib/payment-methods"
 
 export function SalesReportTab() {
   const [loading, setLoading] = useState(true)
@@ -41,7 +51,9 @@ export function SalesReportTab() {
   // Edit Payment State
   const [editPaymentOpen, setEditPaymentOpen] = useState(false)
   const [selectedSaleForEdit, setSelectedSaleForEdit] = useState<Salida | null>(null)
-  const [newPaymentMethod, setNewPaymentMethod] = useState("")
+  const [isSplitPaymentEdit, setIsSplitPaymentEdit] = useState(false)
+  const [simplePaymentMethod, setSimplePaymentMethod] = useState<PaymentMethod>("Efectivo Quetzales")
+  const [editPayments, setEditPayments] = useState<PaymentAllocation[]>([])
 
   // Raw Data
   const [allSales, setAllSales] = useState<Salida[]>([])
@@ -115,11 +127,10 @@ export function SalesReportTab() {
 
     // Payment Method
     if (selectedPayment !== "all") {
-        if (selectedPayment === 'Tarjeta') {
-            result = result.filter(s => s.metodoPago?.toLowerCase().includes('tarjeta'))
-        } else {
-            result = result.filter(s => s.metodoPago === selectedPayment)
-        }
+        result = result.filter(s =>
+            parsePaymentMethod(s.metodoPago, s.total || 0)
+                .some(payment => matchesPaymentFilter(payment.method, selectedPayment))
+        )
     }
 
     // Search (Client, Ticket, or Product inside details)
@@ -140,51 +151,80 @@ export function SalesReportTab() {
   }
 
   // Stats Calculation
-  const totalGlobal = filteredSales.reduce((acc, curr) => acc + (curr.total || 0), 0)
+  const visiblePayments = filteredSales.flatMap(s => {
+      const payments = parsePaymentMethod(s.metodoPago, s.total || 0)
+      return selectedPayment === "all"
+          ? payments
+          : payments.filter(payment => matchesPaymentFilter(payment.method, selectedPayment))
+  })
+
+  const totalGlobal = selectedPayment === "all"
+      ? filteredSales.reduce((acc, curr) => acc + (curr.total || 0), 0)
+      : visiblePayments.reduce((acc, payment) => acc + payment.amount, 0)
   
   // Calculate breakdown handling split payments
   let totalEfectivo = 0
   let totalTarjeta = 0
 
-  filteredSales.forEach(s => {
-      const method = s.metodoPago || ''
-      const amount = s.total || 0
-      
-      if (method.includes('|')) {
-          // Split payment format: "Type: Q100.00 | Type2: Q50.00"
-          const parts = method.split('|')
-          parts.forEach(p => {
-              const [type, m] = p.split(':')
-              if (type && m) {
-                  const val = parseFloat(m.replace(/[^0-9.]/g, '')) || 0
-                  if (type.toLowerCase().includes('efectivo')) totalEfectivo += val
-                  else if (type.toLowerCase().includes('tarjeta')) totalTarjeta += val
-              }
-          })
-      } else {
-          // Single payment
-          if (method.toLowerCase().includes('efectivo')) totalEfectivo += amount
-          else if (method.toLowerCase().includes('tarjeta')) totalTarjeta += amount
-      }
+  visiblePayments.forEach(payment => {
+      if (payment.method.startsWith("Efectivo")) totalEfectivo += payment.amount
+      else if (payment.method === "Tarjeta") totalTarjeta += payment.amount
   })
 
   const openEditPayment = (sale: Salida) => {
     setSelectedSaleForEdit(sale)
-    setNewPaymentMethod(sale.metodoPago || "")
+    const parsed = parsePaymentMethod(sale.metodoPago, sale.total || 0)
+    if (sale.metodoPago && parsed.length === 0) {
+        toast.warning("El método actual no es válido", {
+            description: `Corrige el valor guardado: “${sale.metodoPago}”`,
+        })
+    }
+    if (parsed.length > 1) {
+        setIsSplitPaymentEdit(true)
+        setEditPayments(parsed)
+    } else {
+        setIsSplitPaymentEdit(false)
+        setSimplePaymentMethod(parsed[0]?.method || canonicalizePaymentMethod(sale.metodoPago) || "Efectivo Quetzales")
+        setEditPayments([])
+    }
     setEditPaymentOpen(true)
   }
 
   const handleUpdatePayment = async () => {
-    if (!selectedSaleForEdit || !newPaymentMethod) return
+    if (!selectedSaleForEdit) return
+
+    let newPaymentMethod: string = simplePaymentMethod
+    if (isSplitPaymentEdit) {
+        if (editPayments.length < 2 || editPayments.some(payment => payment.amount <= 0)) {
+            toast.error("Agrega al menos dos pagos con montos válidos")
+            return
+        }
+        if (new Set(editPayments.map(payment => payment.method)).size !== editPayments.length) {
+            toast.error("No repitas el mismo método de pago")
+            return
+        }
+
+        const expectedTotal = selectedSaleForEdit.total || 0
+        const paymentTotal = editPayments.reduce((sum, payment) => sum + payment.amount, 0)
+        if (Math.abs(paymentTotal - expectedTotal) > 0.01) {
+            toast.error("Los pagos no cuadran con el total", {
+                description: `Pagos: Q${paymentTotal.toFixed(2)} · Venta: Q${expectedTotal.toFixed(2)}`,
+            })
+            return
+        }
+        newPaymentMethod = formatSplitPayment(editPayments)
+    }
 
     try {
         await salidasService.updateMetodoPago(selectedSaleForEdit.id, newPaymentMethod)
         toast.success("Método de pago actualizado")
         setEditPaymentOpen(false)
         loadData() // Reload to refresh
-    } catch (error) {
+    } catch (error: any) {
         console.error(error)
-        toast.error("Error al actualizar método de pago")
+        toast.error("Error al actualizar método de pago", {
+            description: error?.response?.data?.message || error?.message,
+        })
     }
   }
 
@@ -497,28 +537,96 @@ export function SalesReportTab() {
                     </CardDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                        <Label>Nuevo Método de Pago</Label>
-                        <Select value={newPaymentMethod} onValueChange={setNewPaymentMethod}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Seleccionar..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Efectivo Quetzales">Efectivo Quetzales</SelectItem>
-                                <SelectItem value="Tarjeta">Tarjeta</SelectItem>
-                                <SelectItem value="Transferencia">Transferencia</SelectItem>
-                                <SelectItem value="Cortesía">Cortesía</SelectItem>
-                                <SelectItem value="Mixto (Manual)">Otro / Mixto (Manual)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {/* Allow manual input if needed or if it's mixed/complex */}
-                        <Input 
-                            value={newPaymentMethod} 
-                            onChange={(e) => setNewPaymentMethod(e.target.value)}
-                            placeholder="Escribe manual (ej. Efectivo: Q50 | Tarjeta: Q20)"
-                        />
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <Label>Nuevo Método de Pago</Label>
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="split-payment-edit" className="text-xs">Pago dividido</Label>
+                                <Switch
+                                    id="split-payment-edit"
+                                    checked={isSplitPaymentEdit}
+                                    onCheckedChange={(checked) => {
+                                        setIsSplitPaymentEdit(checked)
+                                        if (checked && editPayments.length < 2) {
+                                            const alternative: PaymentMethod = simplePaymentMethod === "Tarjeta" ? "Efectivo Quetzales" : "Tarjeta"
+                                            setEditPayments([
+                                                { method: simplePaymentMethod, amount: selectedSaleForEdit?.total || 0 },
+                                                { method: alternative, amount: 0 },
+                                            ])
+                                        } else if (!checked && editPayments[0]) {
+                                            setSimplePaymentMethod(editPayments[0].method)
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        {!isSplitPaymentEdit ? (
+                            <Select value={simplePaymentMethod} onValueChange={(value) => setSimplePaymentMethod(value as PaymentMethod)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {PAYMENT_METHODS.map(method => <SelectItem key={method} value={method}>{method}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                            <div className="space-y-2">
+                                {editPayments.map((payment, index) => (
+                                    <div key={index} className="grid grid-cols-[1fr_120px_36px] gap-2 items-center">
+                                        <Select
+                                            value={payment.method}
+                                            onValueChange={(value) => setEditPayments(current => current.map((item, itemIndex) =>
+                                                itemIndex === index ? { ...item, method: value as PaymentMethod } : item
+                                            ))}
+                                        >
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {PAYMENT_METHODS.map(method => <SelectItem key={method} value={method}>{method}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                        <Input
+                                            type="number"
+                                            min="0.01"
+                                            step="0.01"
+                                            value={payment.amount || ""}
+                                            onChange={(event) => setEditPayments(current => current.map((item, itemIndex) =>
+                                                itemIndex === index ? { ...item, amount: Number(event.target.value) } : item
+                                            ))}
+                                            aria-label={`Monto del pago ${index + 1}`}
+                                        />
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="ghost"
+                                            disabled={editPayments.length <= 2}
+                                            onClick={() => setEditPayments(current => current.filter((_, itemIndex) => itemIndex !== index))}
+                                            aria-label={`Eliminar pago ${index + 1}`}
+                                        >
+                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                <div className="flex items-center justify-between pt-1">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={editPayments.length >= PAYMENT_METHODS.length}
+                                        onClick={() => {
+                                            const used = new Set(editPayments.map(payment => payment.method))
+                                            const method = PAYMENT_METHODS.find(candidate => !used.has(candidate)) || "Efectivo Quetzales"
+                                            setEditPayments(current => [...current, { method, amount: 0 }])
+                                        }}
+                                    >
+                                        <Plus className="h-4 w-4 mr-1" /> Agregar pago
+                                    </Button>
+                                    <span className="text-sm font-medium">
+                                        Total pagos: Q{editPayments.reduce((sum, payment) => sum + payment.amount, 0).toFixed(2)}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                         <p className="text-xs text-muted-foreground">
-                            Para pagos divididos usa el formato: "Metodo1: QMontoss | Metodo2: QMonto"
+                            Solo se guardan métodos válidos. En pagos divididos, los montos deben sumar exactamente el total de la venta.
                         </p>
                     </div>
                     <div className="flex justify-end gap-2">

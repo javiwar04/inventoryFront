@@ -61,7 +61,7 @@ export default function PromocionesPage() {
   const [promoVenta, setPromoVenta] = useState<Promocion | null>(null)
   const [vecesVenta, setVecesVenta] = useState("1")
   const [destinoVenta, setDestinoVenta] = useState<string>("")
-  const [metodoPago, setMetodoPago] = useState("Efectivo")
+  const [metodoPago, setMetodoPago] = useState("Efectivo Quetzales")
   const [clienteVenta, setClienteVenta] = useState("")
 
   const loadData = async () => {
@@ -196,7 +196,7 @@ export default function PromocionesPage() {
     setPromoVenta(p)
     setVecesVenta("1")
     setDestinoVenta("")
-    setMetodoPago("Efectivo")
+    setMetodoPago("Efectivo Quetzales")
     setClienteVenta("")
     setSellOpen(true)
   }
@@ -222,7 +222,7 @@ export default function PromocionesPage() {
       try { window.dispatchEvent(new Event("salidas:created")) } catch {}
       loadData()
     } catch (err: any) {
-      toast.error(err?.response?.data ?? "No se pudo registrar la venta")
+      toast.error(err?.response?.data?.message || err?.response?.data || "No se pudo registrar la venta")
     } finally {
       setSelling(false)
     }
@@ -474,8 +474,10 @@ export default function PromocionesPage() {
                 <Select value={metodoPago} onValueChange={setMetodoPago}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Efectivo">Efectivo</SelectItem>
+                    <SelectItem value="Efectivo Quetzales">Efectivo Quetzales</SelectItem>
+                    <SelectItem value="Efectivo Dólares">Efectivo Dólares</SelectItem>
                     <SelectItem value="Tarjeta">Tarjeta</SelectItem>
+                    <SelectItem value="Transferencia">Transferencia</SelectItem>
                     <SelectItem value="Cortesía">Cortesía</SelectItem>
                   </SelectContent>
                 </Select>
