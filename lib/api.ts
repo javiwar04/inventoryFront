@@ -830,7 +830,7 @@ export interface VenderPromocionInput {
   cantidad: number
   numeroSalida: string
   fechaSalida: string
-  destino?: string
+  destino: string
   metodoPago?: string
   cliente?: string
   observaciones?: string

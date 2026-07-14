@@ -195,7 +195,8 @@ export default function PromocionesPage() {
   const openSell = (p: Promocion) => {
     setPromoVenta(p)
     setVecesVenta("1")
-    setDestinoVenta("")
+    const assignedHotel = proveedores.find((hotel) => hotel.id === user?.sedeId)
+    setDestinoVenta(assignedHotel?.nombre || "")
     setMetodoPago("Efectivo Quetzales")
     setClienteVenta("")
     setSellOpen(true)
@@ -205,6 +206,7 @@ export default function PromocionesPage() {
     if (!promoVenta || !user?.id) return
     const veces = Number(vecesVenta)
     if (!veces || veces < 1) return toast.error("Cantidad inválida")
+    if (!destinoVenta) return toast.error("Selecciona la sede de la venta")
 
     try {
       setSelling(true)
@@ -212,7 +214,7 @@ export default function PromocionesPage() {
         cantidad: veces,
         numeroSalida: `PROMO-${Date.now()}`,
         fechaSalida: hoyStr(),
-        destino: destinoVenta || undefined,
+        destino: destinoVenta,
         metodoPago,
         cliente: clienteVenta.trim() || undefined,
         creadoPor: user.id,
@@ -457,8 +459,11 @@ export default function PromocionesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Sede / Hotel (de dónde sale el stock)</Label>
-              <Select value={destinoVenta} onValueChange={setDestinoVenta}>
+              <Label>
+                Sede / Hotel (de dónde sale el stock)
+                {user?.sedeId ? " · Asignada a tu usuario" : ""}
+              </Label>
+              <Select value={destinoVenta} onValueChange={setDestinoVenta} disabled={Boolean(user?.sedeId)}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar sede" /></SelectTrigger>
                 <SelectContent>
                   {proveedores.map((pv) => (
