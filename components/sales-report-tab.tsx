@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DateRangePicker } from "@/components/date-range-picker"
 import { salidasService, proveedoresService, Salida } from "@/lib/api"
-import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Banknote, Edit, Save, Package, Plus, Trash2 } from "lucide-react"
+import { Loader2, Search, Download, FileSpreadsheet, Printer, TrendingUp, CreditCard, Eye, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Banknote, Edit, Save, Package, Plus, Trash2, MapPin } from "lucide-react"
 import { toast } from "sonner"
 import { DateRange } from "react-day-picker"
 import * as XLSX from 'xlsx'
@@ -25,8 +25,11 @@ import {
   matchesPaymentFilter,
   parsePaymentMethod,
 } from "@/lib/payment-methods"
+import { useAuth } from "@/contexts/auth-context"
 
 export function SalesReportTab() {
+  const { user } = useAuth()
+  const isAdmin = user?.rol === "admin" || user?.rol === "administrador"
   const [loading, setLoading] = useState(true)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
@@ -54,6 +57,10 @@ export function SalesReportTab() {
   const [isSplitPaymentEdit, setIsSplitPaymentEdit] = useState(false)
   const [simplePaymentMethod, setSimplePaymentMethod] = useState<PaymentMethod>("Efectivo Quetzales")
   const [editPayments, setEditPayments] = useState<PaymentAllocation[]>([])
+  const [assignSedeOpen, setAssignSedeOpen] = useState(false)
+  const [selectedSaleForSede, setSelectedSaleForSede] = useState<Salida | null>(null)
+  const [selectedSedeId, setSelectedSedeId] = useState("")
+  const [assigningSede, setAssigningSede] = useState(false)
 
   // Raw Data
   const [allSales, setAllSales] = useState<Salida[]>([])
@@ -225,6 +232,33 @@ export function SalesReportTab() {
         toast.error("Error al actualizar método de pago", {
             description: error?.response?.data?.message || error?.message,
         })
+    }
+  }
+
+  const openAssignSede = (sale: Salida) => {
+    setSelectedSaleForSede(sale)
+    setSelectedSedeId("")
+    setAssignSedeOpen(true)
+  }
+
+  const handleAssignSede = async () => {
+    if (!selectedSaleForSede || !selectedSedeId) {
+        toast.error("Selecciona una sede")
+        return
+    }
+
+    setAssigningSede(true)
+    try {
+        await salidasService.assignSede(selectedSaleForSede.id, Number(selectedSedeId))
+        toast.success("Sede asignada y stock actualizado")
+        setAssignSedeOpen(false)
+        await loadData()
+    } catch (error: any) {
+        toast.error("No se pudo asignar la sede", {
+            description: error?.response?.data?.message || error?.message,
+        })
+    } finally {
+        setAssigningSede(false)
     }
   }
 
@@ -426,6 +460,11 @@ export function SalesReportTab() {
                                     <TableCell className="text-right font-medium">Q{(sale.total || 0).toFixed(2)}</TableCell>
                                     <TableCell className="text-center" onClick={e => e.stopPropagation()}>
                                         <div className="flex justify-center gap-1">
+                                            {isAdmin && !sale.destino && sale.numeroSalida.startsWith("PROMO-") && (
+                                                <Button size="sm" variant="ghost" onClick={() => openAssignSede(sale)} title="Asignar sede y descontar stock">
+                                                    <MapPin className="h-4 w-4 text-amber-500" />
+                                                </Button>
+                                            )}
                                             <Button size="sm" variant="ghost" onClick={() => openEditPayment(sale)} title="Editar Método de Pago">
                                                 <Edit className="h-4 w-4 text-blue-500" />
                                             </Button>
@@ -525,6 +564,40 @@ export function SalesReportTab() {
                 {previewUrl && (
                     <iframe src={previewUrl} className="w-full h-full border rounded-md" />
                 )}
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={assignSedeOpen} onOpenChange={setAssignSedeOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Asignar sede a promoción</DialogTitle>
+                    <CardDescription>
+                        Ticket: {selectedSaleForSede?.numeroSalida} · Total: Q{selectedSaleForSede?.total?.toFixed(2)}
+                    </CardDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label>Sede donde se realizó la venta</Label>
+                        <Select value={selectedSedeId} onValueChange={setSelectedSedeId}>
+                            <SelectTrigger><SelectValue placeholder="Seleccionar sede" /></SelectTrigger>
+                            <SelectContent>
+                                {hoteles.map(hotel => (
+                                    <SelectItem key={hotel.id} value={hotel.id.toString()}>{hotel.nombre}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <p className="text-sm text-amber-600">
+                        Al confirmar, los productos de esta promoción se descontarán del inventario actual de la sede. La operación se cancelará si no existe stock suficiente.
+                    </p>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setAssignSedeOpen(false)} disabled={assigningSede}>Cancelar</Button>
+                        <Button onClick={handleAssignSede} disabled={assigningSede || !selectedSedeId}>
+                            {assigningSede && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            Asignar sede
+                        </Button>
+                    </div>
+                </div>
             </DialogContent>
         </Dialog>
 

@@ -758,6 +758,10 @@ export const salidasService = {
     await api.patch(`/salidas/${id}/metodo-pago`, { MetodoPago: metodoPago })
   },
 
+  async assignSede(id: number, sedeId: number): Promise<void> {
+    await api.patch(`/salidas/${id}/asignar-sede`, { SedeId: sedeId })
+  },
+
   // Actualizar fecha de salida (PATCH) - Requiere endpoint en Backend
   async updateFecha(id: number, fechaSalida: string): Promise<void> {
     await api.patch(`/salidas/${id}/fecha`, { FechaSalida: fechaSalida })
